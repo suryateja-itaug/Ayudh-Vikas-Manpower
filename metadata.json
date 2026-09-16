@@ -1,0 +1,6 @@
+{
+  "name": "Ayudh Vikas Manpower Solutions",
+  "description": "Comprehensive recruitment, candidate registration, job matching, 3-level job confirmation, and employee duty & attendance management portal for Ayudh Vikas Foundation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

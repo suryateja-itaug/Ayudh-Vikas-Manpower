@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    background: #f0fdf4;
+  }
+
+  body {
+    min-width: 320px;
+    background:
+      radial-gradient(circle at top left, rgba(187, 247, 208, 0.55), transparent 34rem),
+      linear-gradient(135deg, #f7fee7 0%, #ffffff 48%, #ecfdf5 100%);
+    text-rendering: geometricPrecision;
+  }
+
+  ::selection {
+    background: #bbf7d0;
+    color: #064e3b;
+  }
+}
