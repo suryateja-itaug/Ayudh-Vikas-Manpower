@@ -18,6 +18,7 @@ import {
   AppointmentLetter,
   ManpowerNotification,
 } from '../types';
+import { mockApiRequest } from '../data/mockApi';
 
 const API_BASE = '/api';
 
@@ -51,18 +52,34 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers,
+      });
 
-    const data = await response.json();
+      const text = await response.text();
+      const looksLikeHtml = text.trim().startsWith('<');
+      if (looksLikeHtml) {
+        const fallback = mockApiRequest<T>(endpoint, options, token);
+        if (fallback !== undefined) return fallback;
+        throw new Error('API returned HTML instead of JSON.');
+      }
 
-    if (!response.ok) {
-      throw new Error(data.error || data.message || `Request failed with status ${response.status}`);
+      const data = text ? JSON.parse(text) : {};
+
+      if (!response.ok) {
+        const fallback = mockApiRequest<T>(endpoint, options, token);
+        if (fallback !== undefined) return fallback;
+        throw new Error(data.error || data.message || `Request failed with status ${response.status}`);
+      }
+
+      return data as T;
+    } catch (err) {
+      const fallback = mockApiRequest<T>(endpoint, options, token);
+      if (fallback !== undefined) return fallback;
+      throw err;
     }
-
-    return data as T;
   }
 
   // Auth
