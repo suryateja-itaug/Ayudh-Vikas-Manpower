@@ -114,24 +114,24 @@ export const CandidateApplicationsPage: React.FC = () => {
           <div className="flex items-center space-x-3">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
             <div>
-              <h4 className="font-bold text-slate-900 text-xs">Registration Required</h4>
+              <h4 className="font-bold text-slate-900 text-xs">Apply from a Job Card</h4>
               <p className="text-xs text-slate-600">
-                You must complete your profile and the nominal ₹10 candidate verification to apply.
+                Choose a vacancy first. The candidate form and Rs.10 payment are completed from that job application flow.
               </p>
             </div>
           </div>
           <Link
-            to="/manpower/register"
+            to="/manpower/jobs/av"
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shrink-0"
           >
-            Register Profile (₹10)
+            Browse Jobs
           </Link>
         </div>
       ) : (
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
           <div className="flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Active Candidate Profile • ₹10 Registration Paid & Verified</span>
+            <span>Candidate profile active. New Rs.10 payment is collected per job application.</span>
           </div>
           <span className="font-mono text-[11px] bg-emerald-100/80 px-2 py-0.5 rounded text-emerald-900 font-semibold">
             Status: ACTIVE
@@ -274,3 +274,5 @@ export const CandidateApplicationsPage: React.FC = () => {
     </div>
   );
 };
+
+

@@ -12,13 +12,10 @@ import {
   Building2,
   Award,
   CreditCard,
-  UserPlus,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 export const HomePage: React.FC = () => {
-  const { isRegisteredCandidate, user } = useAuth();
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
@@ -50,7 +47,7 @@ export const HomePage: React.FC = () => {
           </h1>
 
           <p className="text-emerald-50/85 text-sm sm:text-base leading-relaxed max-w-2xl">
-            Connecting aspiring candidates with career opportunities across Ayudh Vikas Foundation divisions and reputable corporate partners. Featuring genuine candidate registration at nominal ₹10, 3-level merit confirmations, and integrated duty attendance.
+            Connecting aspiring candidates with career opportunities across Ayudh Vikas Foundation divisions and reputable corporate partners. Featuring job-wise Rs.10 application verification, 3-level merit confirmations, and integrated duty attendance.
           </p>
 
           {/* Core Action Buttons */}
@@ -72,23 +69,13 @@ export const HomePage: React.FC = () => {
               <span>Browse All Jobs (Partner)</span>
             </Link>
 
-            {!isRegisteredCandidate ? (
-              <Link
-                to="/manpower/register"
-                className="px-5 py-3 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 text-white font-semibold text-sm shadow-md flex items-center space-x-2 transition-all"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Register Candidate (₹10)</span>
-              </Link>
-            ) : (
-              <Link
-                to="/manpower/applications"
-                className="px-5 py-3 rounded-xl bg-emerald-700 text-white font-semibold text-sm flex items-center space-x-2"
-              >
-                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                <span>My Applications</span>
-              </Link>
-            )}
+            <Link
+              to="/manpower/applications"
+              className="px-5 py-3 rounded-xl bg-emerald-700 text-white font-semibold text-sm flex items-center space-x-2"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+              <span>My Applications</span>
+            </Link>
           </div>
         </div>
 
@@ -161,9 +148,9 @@ export const HomePage: React.FC = () => {
                 ₹10 Fixed
               </span>
             </div>
-            <h3 className="font-bold text-slate-900 text-sm">Employee / Candidate Registration</h3>
+            <h3 className="font-bold text-slate-900 text-sm">Candidate Profile & Job Application</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Unified candidate profile with verified mobile, education, skills, and secure ₹10 server-verified registration payment.
+              Candidate profile details are captured during each job application with a secure Rs.10 verification payment.
             </p>
           </div>
 
@@ -340,26 +327,28 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Candidate Registration Callout */}
+      {/* Application Fee Callout */}
       <section className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-lime-500 text-white shadow-md shadow-emerald-900/15 flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl">
           <div className="flex items-center space-x-2 text-lime-100 text-xs font-semibold uppercase tracking-wider">
             <CreditCard className="w-4 h-4" />
-            <span>Nominal ₹10 Registration</span>
+            <span>Rs.10 Per Job Application</span>
           </div>
-          <h3 className="text-2xl font-bold text-white">One Registration. Eligible for All Vacancies.</h3>
+          <h3 className="text-2xl font-bold text-white">Choose a job first. Apply with the candidate form.</h3>
           <p className="text-xs sm:text-sm text-emerald-50 leading-relaxed">
-            The nominal ₹10 registration fee covers candidate database enrollment and document verification for both AV Jobs and All Jobs with lifetime validity.
+            Candidate details and payment are collected only after you click Apply on a specific vacancy, so each application is linked to the right job.
           </p>
         </div>
 
         <Link
-          to="/manpower/register"
+          to="/manpower/jobs/av"
           className="px-6 py-3 rounded-xl bg-white text-emerald-900 hover:bg-emerald-50 font-bold text-sm shadow-md shrink-0 transition-transform hover:scale-105"
         >
-          Register Now (₹10)
+          Browse Open Jobs
         </Link>
       </section>
     </div>
   );
 };
+
+

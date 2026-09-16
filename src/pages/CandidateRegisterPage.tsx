@@ -62,6 +62,7 @@ export const CandidateRegisterPage: React.FC = () => {
   useEffect(() => {
     if (!jobId) {
       setTargetJob(null);
+      navigate('/manpower/jobs/av', { replace: true });
       return;
     }
 
@@ -77,7 +78,7 @@ export const CandidateRegisterPage: React.FC = () => {
       })
       .catch(err => setErrorMessage(err.message || 'Unable to load the selected job for application.'))
       .finally(() => setJobLoading(false));
-  }, [jobId]);
+  }, [jobId, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -147,7 +148,7 @@ export const CandidateRegisterPage: React.FC = () => {
           <span>Ayudh Vikas Foundation • Official Manpower Recruitment</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-          {isJobApplicationFlow ? 'Candidate Application Form' : 'Candidate Registration Portal'}
+          Candidate Application Form
         </h1>
         <p className="text-xs sm:text-sm text-amber-100 max-w-xl leading-relaxed">
           {isJobApplicationFlow
@@ -689,5 +690,6 @@ export const CandidateRegisterPage: React.FC = () => {
     </div>
   );
 };
+
 
 

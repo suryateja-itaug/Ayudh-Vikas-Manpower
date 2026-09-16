@@ -301,19 +301,6 @@ export const Header: React.FC = () => {
                   All Jobs (External)
                 </Link>
                 <Link
-                  to="/manpower/register"
-                  className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center space-x-1 ${
-                    isActive('/manpower/register')
-                      ? 'bg-emerald-100 text-emerald-900 font-semibold'
-                      : 'text-slate-600 hover:text-emerald-900 hover:bg-emerald-50'
-                  }`}
-                >
-                  <span>Candidate Registration</span>
-                  <span className="text-[10px] bg-lime-200/80 px-1.5 py-0.5 rounded font-bold text-emerald-950">
-                    ₹10
-                  </span>
-                </Link>
-                <Link
                   to="/manpower/applications"
                   className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
                     isActive('/manpower/applications')
@@ -550,7 +537,6 @@ export const Header: React.FC = () => {
                 <>
                   <Link to="/manpower/jobs/av" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">AV Jobs</Link>
                   <Link to="/manpower/jobs/all" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">All Jobs (Partner)</Link>
-                  <Link to="/manpower/register" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-emerald-50 font-medium text-emerald-700">Candidate Registration (₹10)</Link>
                   <Link to="/manpower/applications" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">My Applications</Link>
                 </>
               )}

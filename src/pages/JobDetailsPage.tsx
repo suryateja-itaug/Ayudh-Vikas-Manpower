@@ -20,6 +20,7 @@ import {
 import { api } from '../services/api';
 import { ManpowerJob } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { getSampleJobById } from '../data/sampleJobs';
 
 export const JobDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +43,15 @@ export const JobDetailsPage: React.FC = () => {
     setLoading(true);
     api.getJobById(id)
       .then(res => setJob(res.job))
-      .catch(err => setError(err.message || 'Failed to load job vacancy details'))
+      .catch(err => {
+        const sampleJob = getSampleJobById(id);
+        if (sampleJob) {
+          setJob(sampleJob);
+          setError(null);
+        } else {
+          setError(err.message || 'Failed to load job vacancy details');
+        }
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -313,95 +322,7 @@ export const JobDetailsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Apply Modal */}
-      {showApplyModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">
-                  Confirm Job Application
-                </span>
-                <h3 className="text-lg font-bold text-slate-900">{job.title}</h3>
-                <p className="text-xs text-slate-500">{job.companyName}</p>
-              </div>
-              <button
-                onClick={() => setShowApplyModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {!isRegisteredCandidate ? (
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2">
-                <div className="flex items-center space-x-2 text-amber-800 font-semibold text-xs">
-                  <AlertCircle className="w-4 h-4 text-amber-600" />
-                  <span>Candidate Registration Required (₹10)</span>
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Before applying, candidates must register and complete the ₹10 fee verification.
-                </p>
-                <Link
-                  to="/manpower/register"
-                  className="inline-block text-xs font-bold text-amber-700 hover:underline pt-1"
-                >
-                  Register Candidate Profile (₹10) →
-                </Link>
-              </div>
-            ) : (
-              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center space-x-2 text-xs text-emerald-800">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Active ₹10 Registration Confirmed.</span>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-700">
-                Candidate Statement / Notes (Optional)
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Mention why you are suitable for this opening..."
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-
-            {applyError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{applyError}</span>
-              </div>
-            )}
-
-            {applySuccess && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 flex items-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>{applySuccess}</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end space-x-3 pt-2">
-              <button
-                onClick={() => setShowApplyModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-
-              <button
-                disabled={applying || !isRegisteredCandidate}
-                onClick={handleApply}
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center space-x-2 transition-colors"
-              >
-                {applying ? <span>Submitting...</span> : <span>Confirm Application</span>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
