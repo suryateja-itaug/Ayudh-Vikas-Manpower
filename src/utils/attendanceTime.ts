@@ -32,6 +32,15 @@ export const minutesBetween = (start?: string, end?: string, date?: string) => {
   return Math.max(0, Math.floor((endTime.getTime() - startTime.getTime()) / 60000));
 };
 
+export const secondsBetween = (start?: string, end?: string, date?: string) => {
+  const startTime = parseAttendanceDateTime(start, date);
+  const endTime = parseAttendanceDateTime(end, date);
+
+  if (!startTime || !endTime) return 0;
+
+  return Math.max(0, Math.floor((endTime.getTime() - startTime.getTime()) / 1000));
+};
+
 export const getSessionElapsedMinutes = (session: AttendanceSession, now = new Date()) => {
   if (session.endTime) return session.durationMinutes;
 
@@ -44,7 +53,9 @@ export const getSessionElapsedMinutes = (session: AttendanceSession, now = new D
 export const getSessionElapsedSeconds = (session: AttendanceSession, now = new Date()) => {
   const savedSeconds = (session.durationMinutes || 0) * 60;
 
-  if (session.endTime) return savedSeconds;
+  if (session.endTime) {
+    return Math.max(savedSeconds, secondsBetween(session.startTime, session.endTime));
+  }
 
   const startTime = parseAttendanceDateTime(session.startTime);
   if (!startTime) return savedSeconds;
@@ -66,24 +77,20 @@ export const getLiveAttendanceTotals = (attendance?: EmployeeAttendance | null, 
     };
   }
 
+  const hasSessions = Boolean(attendance.sessions?.length);
   const totals = {
-    workMinutes: attendance.totalWorkMinutes || 0,
-    breakMinutes: attendance.totalBreakMinutes || 0,
-    lunchMinutes: attendance.totalLunchMinutes || 0,
-    workSeconds: (attendance.totalWorkMinutes || 0) * 60,
-    breakSeconds: (attendance.totalBreakMinutes || 0) * 60,
-    lunchSeconds: (attendance.totalLunchMinutes || 0) * 60,
+    workSeconds: hasSessions ? 0 : (attendance.totalWorkMinutes || 0) * 60,
+    breakSeconds: hasSessions ? 0 : (attendance.totalBreakMinutes || 0) * 60,
+    lunchSeconds: hasSessions ? 0 : (attendance.totalLunchMinutes || 0) * 60,
   };
 
-  const activeSession = attendance.sessions?.find(session => !session.endTime);
-
-  if (activeSession) {
-    const elapsedSeconds = getSessionElapsedSeconds(activeSession, now);
-    const additionalSeconds = Math.max(0, elapsedSeconds - (activeSession.durationMinutes || 0) * 60);
-
-    if (activeSession.type === 'WORK') totals.workSeconds += additionalSeconds;
-    if (activeSession.type === 'BREAK') totals.breakSeconds += additionalSeconds;
-    if (activeSession.type === 'LUNCH') totals.lunchSeconds += additionalSeconds;
+  if (hasSessions) {
+    attendance.sessions.forEach(session => {
+      const seconds = getSessionElapsedSeconds(session, now);
+      if (session.type === 'WORK') totals.workSeconds += seconds;
+      if (session.type === 'BREAK') totals.breakSeconds += seconds;
+      if (session.type === 'LUNCH') totals.lunchSeconds += seconds;
+    });
   }
 
   return {
