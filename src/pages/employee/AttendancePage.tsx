@@ -14,6 +14,12 @@ import {
 import { api } from '../../services/api';
 import { EmployeeAttendance } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import {
+  formatAttendanceTime,
+  formatDurationSeconds,
+  getLiveAttendanceTotals,
+  getSessionElapsedSeconds,
+} from '../../utils/attendanceTime';
 
 export const AttendancePage: React.FC = () => {
   const { user } = useAuth();
@@ -49,6 +55,8 @@ export const AttendancePage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [user]);
+
+  const liveTotals = getLiveAttendanceTotals(todayAttendance, currentTime);
 
   const handleDutyAction = async (action: 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT') => {
     try {
@@ -118,7 +126,34 @@ export const AttendancePage: React.FC = () => {
           <div className="text-right">
             <span className="text-xs text-slate-400">Shift Total Work Hours</span>
             <div className="text-2xl font-extrabold text-emerald-600">
-              {Math.floor((todayAttendance?.totalWorkMinutes || 0) / 60)}h {(todayAttendance?.totalWorkMinutes || 0) % 60}m
+              {formatDurationSeconds(liveTotals.workSeconds)}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Clock In</span>
+            <div className="mt-1 font-mono text-sm font-bold text-slate-900">
+              {formatAttendanceTime(todayAttendance?.clockInTime, todayAttendance?.date, '--:--:--', true)}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Clock Out</span>
+            <div className="mt-1 font-mono text-sm font-bold text-slate-900">
+              {formatAttendanceTime(todayAttendance?.clockOutTime, todayAttendance?.date, '--:--:--', true)}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Net Work</span>
+            <div className="mt-1 font-mono text-sm font-bold text-emerald-700">
+              {formatDurationSeconds(liveTotals.workSeconds)}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-amber-50 border border-amber-100 p-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Break + Lunch</span>
+            <div className="mt-1 font-mono text-sm font-bold text-amber-700">
+              {formatDurationSeconds(liveTotals.totalRestSeconds)}
             </div>
           </div>
         </div>
@@ -235,14 +270,14 @@ export const AttendancePage: React.FC = () => {
                   <div>
                     <span className="font-bold text-slate-800">{sess.type} SESSION</span>
                     <p className="text-[11px] text-slate-400">
-                      Started: {new Date(sess.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {sess.endTime ? ` • Ended: ${new Date(sess.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ' • In Progress'}
+                      Started: {formatAttendanceTime(sess.startTime, undefined, '--:--:--', true)}
+                      {sess.endTime ? ` - Ended: ${formatAttendanceTime(sess.endTime, undefined, '--:--:--', true)}` : ' - In Progress'}
                     </p>
                   </div>
                 </div>
 
                 <div className="font-mono font-bold text-slate-700">
-                  {sess.durationMinutes > 0 ? `${sess.durationMinutes} mins` : 'Ongoing'}
+                  {sess.endTime ? formatDurationSeconds(sess.durationMinutes * 60) : formatDurationSeconds(getSessionElapsedSeconds(sess, currentTime))}
                 </div>
               </div>
             ))}
@@ -277,16 +312,16 @@ export const AttendancePage: React.FC = () => {
                 <tr key={item.id} className="hover:bg-slate-50/80">
                   <td className="py-3 px-4 font-semibold text-slate-900">{item.date}</td>
                   <td className="py-3 px-4">
-                    {item.clockInTime ? new Date(item.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                    {formatAttendanceTime(item.clockInTime, item.date, '--:--:--', true)}
                   </td>
                   <td className="py-3 px-4">
-                    {item.clockOutTime ? new Date(item.clockOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                    {formatAttendanceTime(item.clockOutTime, item.date, '--:--:--', true)}
                   </td>
                   <td className="py-3 px-4 font-mono font-semibold text-emerald-700">
-                    {Math.floor(item.totalWorkMinutes / 60)}h {item.totalWorkMinutes % 60}m
+                    {formatDurationSeconds(getLiveAttendanceTotals(item, currentTime).workSeconds)}
                   </td>
                   <td className="py-3 px-4 font-mono text-amber-600">
-                    {item.totalBreakMinutes + item.totalLunchMinutes}m
+                    {formatDurationSeconds(getLiveAttendanceTotals(item, currentTime).totalRestSeconds)}
                   </td>
                   <td className="py-3 px-4">
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800">

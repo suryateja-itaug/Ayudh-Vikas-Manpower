@@ -21,6 +21,20 @@ import { getSampleJobById, getSampleJobs, sampleJobs } from './sampleJobs';
 const now = new Date().toISOString();
 const today = new Date().toISOString().slice(0, 10);
 
+const toLocalDateTime = (date: string, time: string) => `${date}T${time}`;
+const getCurrentIso = () => new Date().toISOString();
+const getCurrentDate = () => new Date().toISOString().slice(0, 10);
+const diffMinutes = (start?: string, end?: string) => {
+  if (!start || !end) return 0;
+
+  const startTime = new Date(start).getTime();
+  const endTime = new Date(end).getTime();
+
+  if (Number.isNaN(startTime) || Number.isNaN(endTime)) return 0;
+
+  return Math.max(0, Math.floor((endTime - startTime) / 60000));
+};
+
 const users: User[] = [
   {
     id: 'usr_admin_01',
@@ -161,7 +175,7 @@ const attendance: EmployeeAttendance[] = [
     id: 'att_today',
     employeeId: employee.employeeId,
     date: today,
-    clockInTime: '09:03:00',
+    clockInTime: toLocalDateTime(today, '09:03:00'),
     dutyStatus: 'PRESENT',
     currentActivity: 'WORKING',
     totalWorkMinutes: 245,
@@ -171,7 +185,7 @@ const attendance: EmployeeAttendance[] = [
       {
         id: 'sess_work_01',
         type: 'WORK',
-        startTime: `${today}T09:03:00.000Z`,
+        startTime: toLocalDateTime(today, '09:03:00'),
         durationMinutes: 245,
       },
     ],
@@ -180,8 +194,8 @@ const attendance: EmployeeAttendance[] = [
     id: 'att_yesterday',
     employeeId: employee.employeeId,
     date: '2026-09-15',
-    clockInTime: '09:00:00',
-    clockOutTime: '18:05:00',
+    clockInTime: toLocalDateTime('2026-09-15', '09:00:00'),
+    clockOutTime: toLocalDateTime('2026-09-15', '18:05:00'),
     dutyStatus: 'PRESENT',
     currentActivity: 'OFF_DUTY',
     totalWorkMinutes: 480,
@@ -401,6 +415,56 @@ const appointmentLetter: AppointmentLetter = {
   ],
   authorizedSignatory: 'Dr. Ramesh Chandra',
   signatoryTitle: 'Managing Director',
+};
+
+const createEmptyTodayAttendance = (): EmployeeAttendance => ({
+  id: `att_${getCurrentDate()}`,
+  employeeId: employee.employeeId,
+  date: getCurrentDate(),
+  dutyStatus: 'ABSENT',
+  currentActivity: 'OFF_DUTY',
+  totalWorkMinutes: 0,
+  totalBreakMinutes: 0,
+  totalLunchMinutes: 0,
+  sessions: [],
+});
+
+const getTodayAttendanceRecord = () => {
+  const currentDate = getCurrentDate();
+  let todayRecord = attendance.find(item => item.employeeId === employee.employeeId && item.date === currentDate);
+
+  if (!todayRecord) {
+    todayRecord = createEmptyTodayAttendance();
+    attendance.unshift(todayRecord);
+  }
+
+  return todayRecord;
+};
+
+const closeActiveAttendanceSession = (record: EmployeeAttendance, endedAt: string) => {
+  const activeSession = record.sessions.find(session => !session.endTime);
+
+  if (!activeSession) return null;
+
+  const previousDuration = activeSession.durationMinutes || 0;
+  activeSession.endTime = endedAt;
+  activeSession.durationMinutes = diffMinutes(activeSession.startTime, endedAt);
+  const additionalMinutes = Math.max(0, activeSession.durationMinutes - previousDuration);
+
+  if (activeSession.type === 'WORK') record.totalWorkMinutes += additionalMinutes;
+  if (activeSession.type === 'BREAK') record.totalBreakMinutes += additionalMinutes;
+  if (activeSession.type === 'LUNCH') record.totalLunchMinutes += additionalMinutes;
+
+  return activeSession;
+};
+
+const startAttendanceSession = (record: EmployeeAttendance, type: 'WORK' | 'BREAK' | 'LUNCH', startedAt: string) => {
+  record.sessions.push({
+    id: nextId(`sess_${type.toLowerCase()}`),
+    type,
+    startTime: startedAt,
+    durationMinutes: 0,
+  });
 };
 
 let notifications: ManpowerNotification[] = [
@@ -649,7 +713,7 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
   }
 
   if (pathname === '/employee/me') {
-    return { employee, todayAttendance: attendance[0], leaveBalance: { casual: 8, sick: 6, earned: 12 } } as T;
+    return { employee, todayAttendance: getTodayAttendanceRecord(), leaveBalance: { casual: 8, sick: 6, earned: 12 } } as T;
   }
 
   if (pathname === '/employee/attendance/history') return { history: attendance } as T;
@@ -668,6 +732,66 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
   }
 
   if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+    if (pathname === '/employee/attendance/action' && method === 'POST') {
+      const body = JSON.parse(String(options.body || '{}'));
+      const action = body.action as 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT';
+      const record = getTodayAttendanceRecord();
+      const timestamp = getCurrentIso();
+
+      if (action === 'CLOCK_IN') {
+        if (record.currentActivity !== 'OFF_DUTY') {
+          return { message: 'You are already clocked in for duty.', attendance: record } as T;
+        }
+
+        record.clockInTime = timestamp;
+        record.clockOutTime = undefined;
+        record.dutyStatus = 'PRESENT';
+        record.currentActivity = 'WORKING';
+        startAttendanceSession(record, 'WORK', timestamp);
+
+        return { message: 'Clock in recorded successfully.', attendance: record } as T;
+      }
+
+      if (action === 'BREAK' || action === 'LUNCH') {
+        if (record.currentActivity !== 'WORKING') {
+          return { message: 'Start or resume active work before taking a break.', attendance: record } as T;
+        }
+
+        closeActiveAttendanceSession(record, timestamp);
+        record.currentActivity = action;
+        startAttendanceSession(record, action, timestamp);
+
+        return {
+          message: action === 'BREAK' ? 'Short break started.' : 'Lunch recess started.',
+          attendance: record,
+        } as T;
+      }
+
+      if (action === 'RESUME') {
+        if (record.currentActivity !== 'BREAK' && record.currentActivity !== 'LUNCH') {
+          return { message: 'There is no active break to resume from.', attendance: record } as T;
+        }
+
+        closeActiveAttendanceSession(record, timestamp);
+        record.currentActivity = 'WORKING';
+        startAttendanceSession(record, 'WORK', timestamp);
+
+        return { message: 'Duty resumed successfully.', attendance: record } as T;
+      }
+
+      if (action === 'CLOCK_OUT') {
+        if (record.currentActivity === 'OFF_DUTY') {
+          return { message: 'You are already clocked out.', attendance: record } as T;
+        }
+
+        closeActiveAttendanceSession(record, timestamp);
+        record.clockOutTime = timestamp;
+        record.currentActivity = 'OFF_DUTY';
+
+        return { message: 'Clock out recorded and shift finalized.', attendance: record } as T;
+      }
+    }
+
     if (pathname === '/employee/notes' && method === 'POST') {
       const body = JSON.parse(String(options.body || '{}'));
       const note = { id: nextId('note'), employeeId: employee.employeeId, title: body.title || 'Note', content: body.content || '', color: body.color || 'emerald', createdAt: now, updatedAt: now };
