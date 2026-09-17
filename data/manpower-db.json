@@ -7098,81 +7098,12 @@
       "id": "att_emp_01_today",
       "employeeId": "AV-EMP-2026-0042",
       "date": "2026-09-16",
-      "clockInTime": "09:00:00",
-      "dutyStatus": "PRESENT",
-      "currentActivity": "WORKING",
-      "totalWorkMinutes": 240,
-      "totalBreakMinutes": 20,
-      "totalLunchMinutes": 45,
-      "sessions": [
-        {
-          "id": "sess_01",
-          "type": "WORK",
-          "startTime": "2026-09-16T09:00:00.000Z",
-          "endTime": "2026-09-16T11:00:00.000Z",
-          "durationMinutes": 120
-        },
-        {
-          "id": "sess_02",
-          "type": "BREAK",
-          "startTime": "2026-09-16T11:00:00.000Z",
-          "endTime": "2026-09-16T11:20:00.000Z",
-          "durationMinutes": 20
-        },
-        {
-          "id": "sess_03",
-          "type": "WORK",
-          "startTime": "2026-09-16T11:20:00.000Z",
-          "endTime": "2026-09-16T13:00:00.000Z",
-          "durationMinutes": 100
-        },
-        {
-          "id": "sess_04",
-          "type": "LUNCH",
-          "startTime": "2026-09-16T13:00:00.000Z",
-          "endTime": "2026-09-16T13:45:00.000Z",
-          "durationMinutes": 45
-        },
-        {
-          "id": "sess_05",
-          "type": "WORK",
-          "startTime": "2026-09-16T13:45:00.000Z",
-          "durationMinutes": 0
-        }
-      ]
-    },
-    {
-      "id": "att_AV-EMP-2026-0042_2026-09-17",
-      "employeeId": "AV-EMP-2026-0042",
-      "date": "2026-09-17",
-      "dutyStatus": "PRESENT",
-      "currentActivity": "WORKING",
-      "totalWorkMinutes": 2,
-      "totalBreakMinutes": 2,
+      "dutyStatus": "ABSENT",
+      "currentActivity": "OFF_DUTY",
+      "totalWorkMinutes": 0,
+      "totalBreakMinutes": 0,
       "totalLunchMinutes": 0,
-      "sessions": [
-        {
-          "id": "sess_9e2ccf",
-          "type": "WORK",
-          "startTime": "2026-09-17T07:55:42.701Z",
-          "durationMinutes": 2,
-          "endTime": "2026-09-17T07:57:16.916Z"
-        },
-        {
-          "id": "sess_7f4905",
-          "type": "BREAK",
-          "startTime": "2026-09-17T07:57:16.916Z",
-          "durationMinutes": 2,
-          "endTime": "2026-09-17T07:59:32.681Z"
-        },
-        {
-          "id": "sess_4419c4",
-          "type": "WORK",
-          "startTime": "2026-09-17T07:59:32.681Z",
-          "durationMinutes": 0
-        }
-      ],
-      "clockInTime": "13:25:41"
+      "sessions": []
     }
   ],
   "leaves": [

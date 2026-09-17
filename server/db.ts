@@ -1243,54 +1243,17 @@ class Database {
       }
     }
 
-    // Today's attendance (Day 16) - Active duty
+    // Demo current-day placeholder starts clean; users build the day dynamically with clock-in/out.
     attendance.push({
       id: 'att_emp_01_today',
       employeeId: 'AV-EMP-2026-0042',
       date: todayStr,
-      clockInTime: '09:00:00',
-      clockOutTime: undefined,
-      dutyStatus: 'PRESENT',
-      currentActivity: 'WORKING',
-      totalWorkMinutes: 240,
-      totalBreakMinutes: 20,
-      totalLunchMinutes: 45,
-      sessions: [
-        {
-          id: 'sess_01',
-          type: 'WORK',
-          startTime: `${todayStr}T09:00:00.000Z`,
-          endTime: `${todayStr}T11:00:00.000Z`,
-          durationMinutes: 120,
-        },
-        {
-          id: 'sess_02',
-          type: 'BREAK',
-          startTime: `${todayStr}T11:00:00.000Z`,
-          endTime: `${todayStr}T11:20:00.000Z`,
-          durationMinutes: 20,
-        },
-        {
-          id: 'sess_03',
-          type: 'WORK',
-          startTime: `${todayStr}T11:20:00.000Z`,
-          endTime: `${todayStr}T13:00:00.000Z`,
-          durationMinutes: 100,
-        },
-        {
-          id: 'sess_04',
-          type: 'LUNCH',
-          startTime: `${todayStr}T13:00:00.000Z`,
-          endTime: `${todayStr}T13:45:00.000Z`,
-          durationMinutes: 45,
-        },
-        {
-          id: 'sess_05',
-          type: 'WORK',
-          startTime: `${todayStr}T13:45:00.000Z`,
-          durationMinutes: 0,
-        },
-      ],
+      dutyStatus: 'ABSENT',
+      currentActivity: 'OFF_DUTY',
+      totalWorkMinutes: 0,
+      totalBreakMinutes: 0,
+      totalLunchMinutes: 0,
+      sessions: [],
     });
 
     const leaves: EmployeeLeave[] = [
