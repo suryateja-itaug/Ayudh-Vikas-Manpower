@@ -1468,6 +1468,56 @@ apiRouter.post('/admin/approvals/:approvalId/decide', requireAdmin, (req: Authen
 // 8. EMPLOYEE PORTAL & ATTENDANCE ENGINE
 // ==========================================
 
+const getAttendanceDate = () => new Date().toISOString().split('T')[0];
+
+const getAttendanceTimestamp = () => new Date().toISOString();
+
+const diffAttendanceMinutes = (start?: string, end?: string) => {
+  if (!start || !end) return 0;
+
+  const startTime = new Date(start).getTime();
+  const endTime = new Date(end).getTime();
+
+  if (Number.isNaN(startTime) || Number.isNaN(endTime)) return 0;
+
+  return Math.max(0, Math.floor((endTime - startTime) / 60000));
+};
+
+const emptyAttendance = (employeeId: string, date: string): EmployeeAttendance => ({
+  id: `att_${employeeId}_${date}`,
+  employeeId,
+  date,
+  dutyStatus: 'ABSENT',
+  currentActivity: 'OFF_DUTY',
+  totalWorkMinutes: 0,
+  totalBreakMinutes: 0,
+  totalLunchMinutes: 0,
+  sessions: [],
+});
+
+const closeAttendanceSession = (attendance: EmployeeAttendance, endedAt: string) => {
+  const activeSession = attendance.sessions.find(s => !s.endTime);
+  if (!activeSession) return;
+
+  const previousDuration = activeSession.durationMinutes || 0;
+  activeSession.endTime = endedAt;
+  activeSession.durationMinutes = diffAttendanceMinutes(activeSession.startTime, endedAt);
+  const additionalMinutes = Math.max(0, activeSession.durationMinutes - previousDuration);
+
+  if (activeSession.type === 'WORK') attendance.totalWorkMinutes += additionalMinutes;
+  if (activeSession.type === 'BREAK') attendance.totalBreakMinutes += additionalMinutes;
+  if (activeSession.type === 'LUNCH') attendance.totalLunchMinutes += additionalMinutes;
+};
+
+const startAttendanceSession = (attendance: EmployeeAttendance, type: AttendanceSession['type'], startedAt: string) => {
+  attendance.sessions.push({
+    id: `sess_${crypto.randomUUID().slice(0, 6)}`,
+    type,
+    startTime: startedAt,
+    durationMinutes: 0,
+  });
+};
+
 apiRouter.get('/employee/me', requireEmployee, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   let employee = db.employees.find(e => e.userId === user.id);
@@ -1479,7 +1529,7 @@ apiRouter.get('/employee/me', requireEmployee, (req: AuthenticatedRequest, res: 
     return res.status(404).json({ error: 'Employee record not found.' });
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getAttendanceDate();
   const todayAttendance = db.attendance.find(a => a.employeeId === employee!.employeeId && a.date === todayStr);
 
   const leaveBalance = {
@@ -1490,16 +1540,7 @@ apiRouter.get('/employee/me', requireEmployee, (req: AuthenticatedRequest, res: 
 
   res.json({
     employee,
-    todayAttendance: todayAttendance || {
-      employeeId: employee.employeeId,
-      date: todayStr,
-      dutyStatus: 'ABSENT',
-      currentActivity: 'OFF_DUTY',
-      totalWorkMinutes: 0,
-      totalBreakMinutes: 0,
-      totalLunchMinutes: 0,
-      sessions: [],
-    },
+    todayAttendance: todayAttendance || emptyAttendance(employee.employeeId, todayStr),
     leaveBalance,
   });
 });
@@ -1521,24 +1562,13 @@ apiRouter.post('/employee/attendance/action', requireEmployee, (req: Authenticat
     return res.status(400).json({ error: `Invalid action. Must be one of: ${validActions.join(', ')}` });
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const nowTimeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
-  const nowIso = new Date().toISOString();
+  const todayStr = getAttendanceDate();
+  const nowIso = getAttendanceTimestamp();
 
   let attendance = db.attendance.find(a => a.employeeId === employee!.employeeId && a.date === todayStr);
 
   if (!attendance) {
-    attendance = {
-      id: `att_${employee.employeeId}_${todayStr}`,
-      employeeId: employee.employeeId,
-      date: todayStr,
-      dutyStatus: 'ABSENT',
-      currentActivity: 'OFF_DUTY',
-      totalWorkMinutes: 0,
-      totalBreakMinutes: 0,
-      totalLunchMinutes: 0,
-      sessions: [],
-    };
+    attendance = emptyAttendance(employee.employeeId, todayStr);
     db.attendance.push(attendance);
   }
 
@@ -1552,15 +1582,15 @@ apiRouter.post('/employee/attendance/action', requireEmployee, (req: Authenticat
         return res.status(400).json({ error: 'Duty already concluded for today.' });
       }
 
-      attendance.clockInTime = nowTimeStr;
+      attendance.clockInTime = nowIso;
+      attendance.clockOutTime = undefined;
+      attendance.totalWorkMinutes = 0;
+      attendance.totalBreakMinutes = 0;
+      attendance.totalLunchMinutes = 0;
+      attendance.sessions = [];
       attendance.dutyStatus = 'PRESENT';
       attendance.currentActivity = 'WORKING';
-      attendance.sessions.push({
-        id: `sess_${crypto.randomUUID().slice(0, 6)}`,
-        type: 'WORK',
-        startTime: nowIso,
-        durationMinutes: 0,
-      });
+      startAttendanceSession(attendance, 'WORK', nowIso);
       break;
     }
 
@@ -1569,22 +1599,9 @@ apiRouter.post('/employee/attendance/action', requireEmployee, (req: Authenticat
         return res.status(400).json({ error: 'Cannot take Break: Must be currently in WORKING state.' });
       }
 
-      // Close current work session
-      const lastWorkSess = attendance.sessions.find(s => s.type === 'WORK' && !s.endTime);
-      if (lastWorkSess) {
-        lastWorkSess.endTime = nowIso;
-        const dur = Math.max(1, Math.round((new Date(nowIso).getTime() - new Date(lastWorkSess.startTime).getTime()) / 60000));
-        lastWorkSess.durationMinutes = dur;
-        attendance.totalWorkMinutes += dur;
-      }
-
+      closeAttendanceSession(attendance, nowIso);
       attendance.currentActivity = 'BREAK';
-      attendance.sessions.push({
-        id: `sess_${crypto.randomUUID().slice(0, 6)}`,
-        type: 'BREAK',
-        startTime: nowIso,
-        durationMinutes: 0,
-      });
+      startAttendanceSession(attendance, 'BREAK', nowIso);
       break;
     }
 
@@ -1593,21 +1610,9 @@ apiRouter.post('/employee/attendance/action', requireEmployee, (req: Authenticat
         return res.status(400).json({ error: 'Cannot take Lunch: Must be currently in WORKING state.' });
       }
 
-      const lastWorkSess = attendance.sessions.find(s => s.type === 'WORK' && !s.endTime);
-      if (lastWorkSess) {
-        lastWorkSess.endTime = nowIso;
-        const dur = Math.max(1, Math.round((new Date(nowIso).getTime() - new Date(lastWorkSess.startTime).getTime()) / 60000));
-        lastWorkSess.durationMinutes = dur;
-        attendance.totalWorkMinutes += dur;
-      }
-
+      closeAttendanceSession(attendance, nowIso);
       attendance.currentActivity = 'LUNCH';
-      attendance.sessions.push({
-        id: `sess_${crypto.randomUUID().slice(0, 6)}`,
-        type: 'LUNCH',
-        startTime: nowIso,
-        durationMinutes: 0,
-      });
+      startAttendanceSession(attendance, 'LUNCH', nowIso);
       break;
     }
 
@@ -1616,25 +1621,9 @@ apiRouter.post('/employee/attendance/action', requireEmployee, (req: Authenticat
         return res.status(400).json({ error: 'Cannot Resume: No active Break or Lunch session to resume from.' });
       }
 
-      // Close pause session
-      const activePause = attendance.sessions.find(
-        s => (s.type === 'BREAK' || s.type === 'LUNCH') && !s.endTime
-      );
-      if (activePause) {
-        activePause.endTime = nowIso;
-        const dur = Math.max(1, Math.round((new Date(nowIso).getTime() - new Date(activePause.startTime).getTime()) / 60000));
-        activePause.durationMinutes = dur;
-        if (activePause.type === 'BREAK') attendance.totalBreakMinutes += dur;
-        if (activePause.type === 'LUNCH') attendance.totalLunchMinutes += dur;
-      }
-
+      closeAttendanceSession(attendance, nowIso);
       attendance.currentActivity = 'WORKING';
-      attendance.sessions.push({
-        id: `sess_${crypto.randomUUID().slice(0, 6)}`,
-        type: 'WORK',
-        startTime: nowIso,
-        durationMinutes: 0,
-      });
+      startAttendanceSession(attendance, 'WORK', nowIso);
       break;
     }
 
@@ -1643,18 +1632,8 @@ apiRouter.post('/employee/attendance/action', requireEmployee, (req: Authenticat
         return res.status(400).json({ error: 'Cannot Clock Out: You have not clocked in today.' });
       }
 
-      // Close whatever session was active
-      const activeSess = attendance.sessions.find(s => !s.endTime);
-      if (activeSess) {
-        activeSess.endTime = nowIso;
-        const dur = Math.max(1, Math.round((new Date(nowIso).getTime() - new Date(activeSess.startTime).getTime()) / 60000));
-        activeSess.durationMinutes = dur;
-        if (activeSess.type === 'WORK') attendance.totalWorkMinutes += dur;
-        if (activeSess.type === 'BREAK') attendance.totalBreakMinutes += dur;
-        if (activeSess.type === 'LUNCH') attendance.totalLunchMinutes += dur;
-      }
-
-      attendance.clockOutTime = nowTimeStr;
+      closeAttendanceSession(attendance, nowIso);
+      attendance.clockOutTime = nowIso;
       attendance.currentActivity = 'OFF_DUTY';
       break;
     }
@@ -1663,7 +1642,7 @@ apiRouter.post('/employee/attendance/action', requireEmployee, (req: Authenticat
   db.save();
 
   res.json({
-    message: `Attendance action '${action}' recorded successfully at ${nowTimeStr}.`,
+    message: `Attendance action '${action}' recorded successfully at ${new Date(nowIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.`,
     attendance,
   });
 });
