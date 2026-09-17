@@ -3,6 +3,7 @@ import { Clock, Calendar, Search, Users, Coffee, Play, CheckCircle2 } from 'luci
 import { api } from '../../services/api';
 import { EmployeeAttendance } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { formatAttendanceTime, formatDuration, getLiveAttendanceTotals } from '../../utils/attendanceTime';
 
 export const AdminAttendancePage: React.FC = () => {
   const { user } = useAuth();
@@ -82,7 +83,7 @@ export const AdminAttendancePage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
           <span className="text-xs text-slate-400 font-medium">Completed Shifts</span>
           <div className="text-2xl font-bold text-slate-700">
-            {attendances.filter(a => a.dutyStatus === 'COMPLETED').length}
+            {attendances.filter(a => Boolean(a.clockOutTime)).length}
           </div>
           <p className="text-[11px] text-slate-500">Clocked out shifts</p>
         </div>
@@ -125,19 +126,19 @@ export const AdminAttendancePage: React.FC = () => {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      {item.clockInTime ? new Date(item.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                      {formatAttendanceTime(item.clockInTime, item.date)}
                     </td>
 
                     <td className="py-3.5 px-4">
-                      {item.clockOutTime ? new Date(item.clockOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                      {formatAttendanceTime(item.clockOutTime, item.date)}
                     </td>
 
                     <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">
-                      {Math.floor(item.totalWorkMinutes / 60)}h {item.totalWorkMinutes % 60}m
+                      {formatDuration(getLiveAttendanceTotals(item).workMinutes)}
                     </td>
 
                     <td className="py-3.5 px-4 font-mono text-amber-600">
-                      {item.totalBreakMinutes + item.totalLunchMinutes} mins
+                      {formatDuration(getLiveAttendanceTotals(item).totalRestMinutes)}
                     </td>
 
                     <td className="py-3.5 px-4">

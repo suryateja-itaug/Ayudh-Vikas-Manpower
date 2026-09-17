@@ -7140,6 +7140,39 @@
           "durationMinutes": 0
         }
       ]
+    },
+    {
+      "id": "att_AV-EMP-2026-0042_2026-09-17",
+      "employeeId": "AV-EMP-2026-0042",
+      "date": "2026-09-17",
+      "dutyStatus": "PRESENT",
+      "currentActivity": "WORKING",
+      "totalWorkMinutes": 2,
+      "totalBreakMinutes": 2,
+      "totalLunchMinutes": 0,
+      "sessions": [
+        {
+          "id": "sess_9e2ccf",
+          "type": "WORK",
+          "startTime": "2026-09-17T07:55:42.701Z",
+          "durationMinutes": 2,
+          "endTime": "2026-09-17T07:57:16.916Z"
+        },
+        {
+          "id": "sess_7f4905",
+          "type": "BREAK",
+          "startTime": "2026-09-17T07:57:16.916Z",
+          "durationMinutes": 2,
+          "endTime": "2026-09-17T07:59:32.681Z"
+        },
+        {
+          "id": "sess_4419c4",
+          "type": "WORK",
+          "startTime": "2026-09-17T07:59:32.681Z",
+          "durationMinutes": 0
+        }
+      ],
+      "clockInTime": "13:25:41"
     }
   ],
   "leaves": [

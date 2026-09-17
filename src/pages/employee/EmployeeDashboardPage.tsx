@@ -20,6 +20,11 @@ import {
 import { api } from '../../services/api';
 import { ManpowerEmployee, EmployeeAttendance } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import {
+  formatAttendanceTime,
+  formatDurationSeconds,
+  getLiveAttendanceTotals,
+} from '../../utils/attendanceTime';
 
 export const EmployeeDashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -31,6 +36,7 @@ export const EmployeeDashboardPage: React.FC = () => {
     earned: 12,
   });
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const fetchEmployeeData = async () => {
     try {
@@ -49,6 +55,11 @@ export const EmployeeDashboardPage: React.FC = () => {
   useEffect(() => {
     fetchEmployeeData();
   }, [user]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const handleQuickDutyAction = async (action: 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT') => {
     try {
@@ -119,6 +130,8 @@ export const EmployeeDashboardPage: React.FC = () => {
     );
   }
 
+  const liveTotals = getLiveAttendanceTotals(attendance, currentTime);
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
       {/* Employee Profile Header Card */}
@@ -183,9 +196,22 @@ export const EmployeeDashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="self-start sm:self-center">
+          <div className="self-start sm:self-center flex flex-col sm:items-end gap-2">
+            <div className="font-mono text-sm font-extrabold text-slate-900 bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
             {getActivityBadge(attendance?.currentActivity)}
           </div>
+        </div>
+
+        <div className="rounded-2xl bg-emerald-950 text-white p-4 border border-emerald-800 shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200">Working Hours Today</span>
+          <div className="mt-1 font-mono text-2xl sm:text-3xl font-extrabold tracking-wide text-lime-300">
+            {formatDurationSeconds(liveTotals.workSeconds)}
+          </div>
+          <p className="mt-1 text-[11px] text-emerald-100/70">
+            Live net duty time, excluding break and lunch sessions.
+          </p>
         </div>
 
         {/* Action Buttons */}
@@ -252,19 +278,19 @@ export const EmployeeDashboardPage: React.FC = () => {
           <div>
             <span className="text-[11px] text-slate-400">Clock In Time</span>
             <div className="font-bold text-slate-900 mt-0.5">
-              {attendance?.clockInTime ? new Date(attendance.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              {formatAttendanceTime(attendance?.clockInTime, attendance?.date, '--:--:--', true)}
             </div>
           </div>
           <div>
             <span className="text-[11px] text-slate-400">Net Work Hours</span>
             <div className="font-bold text-emerald-600 mt-0.5">
-              {Math.floor((attendance?.totalWorkMinutes || 0) / 60)}h {(attendance?.totalWorkMinutes || 0) % 60}m
+              {formatDurationSeconds(liveTotals.workSeconds)}
             </div>
           </div>
           <div>
             <span className="text-[11px] text-slate-400">Break & Lunch Time</span>
             <div className="font-bold text-lime-700 mt-0.5">
-              {(attendance?.totalBreakMinutes || 0) + (attendance?.totalLunchMinutes || 0)} mins
+              {formatDurationSeconds(liveTotals.totalRestSeconds)}
             </div>
           </div>
         </div>
