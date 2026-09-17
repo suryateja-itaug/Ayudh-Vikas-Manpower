@@ -20,11 +20,15 @@ import {
 import { api } from '../../services/api';
 import { ManpowerEmployee, EmployeeAttendance } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { DutyActionConfirmModal } from '../../components/DutyActionConfirmModal';
 import {
   formatAttendanceTime,
   formatDurationSeconds,
   getLiveAttendanceTotals,
 } from '../../utils/attendanceTime';
+
+type DutyAction = 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT';
+type ConfirmableDutyAction = Extract<DutyAction, 'CLOCK_IN' | 'CLOCK_OUT'>;
 
 export const EmployeeDashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -37,6 +41,8 @@ export const EmployeeDashboardPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [pendingAction, setPendingAction] = useState<ConfirmableDutyAction | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchEmployeeData = async () => {
     try {
@@ -61,13 +67,26 @@ export const EmployeeDashboardPage: React.FC = () => {
     return () => window.clearInterval(timer);
   }, []);
 
-  const handleQuickDutyAction = async (action: 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT') => {
+  const handleQuickDutyAction = async (action: DutyAction) => {
     try {
+      setActionLoading(true);
       const res = await api.recordAttendanceAction(action);
       setAttendance(res.attendance);
     } catch (err: any) {
       alert(err.message || 'Action failed.');
+    } finally {
+      setActionLoading(false);
+      setPendingAction(null);
     }
+  };
+
+  const requestQuickDutyAction = (action: DutyAction) => {
+    if (action === 'CLOCK_IN' || action === 'CLOCK_OUT') {
+      setPendingAction(action);
+      return;
+    }
+
+    handleQuickDutyAction(action);
   };
 
   const getActivityBadge = (activity?: string) => {
@@ -131,6 +150,11 @@ export const EmployeeDashboardPage: React.FC = () => {
   }
 
   const liveTotals = getLiveAttendanceTotals(attendance, currentTime);
+  const completedToday = Boolean(
+    attendance?.clockInTime &&
+    attendance?.clockOutTime &&
+    attendance.currentActivity === 'OFF_DUTY'
+  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
@@ -217,19 +241,27 @@ export const EmployeeDashboardPage: React.FC = () => {
         {/* Action Buttons */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {attendance?.currentActivity === 'OFF_DUTY' ? (
-            <button
-              onClick={() => handleQuickDutyAction('CLOCK_IN')}
-              className="col-span-2 sm:col-span-5 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-md flex items-center justify-center space-x-2 transition-all hover:scale-[1.01]"
-            >
-              <Play className="w-4 h-4" />
-              <span>CLOCK IN FOR TODAY'S DUTY</span>
-            </button>
+            completedToday ? (
+              <div className="col-span-2 sm:col-span-5 py-3.5 bg-slate-100 text-slate-500 rounded-2xl font-bold text-sm border border-slate-200 flex items-center justify-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>SHIFT COMPLETED - CLOCK IN AVAILABLE NEXT DAY</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => requestQuickDutyAction('CLOCK_IN')}
+                disabled={actionLoading}
+                className="col-span-2 sm:col-span-5 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-2xl font-bold text-sm shadow-md flex items-center justify-center space-x-2 transition-all hover:scale-[1.01]"
+              >
+                <Play className="w-4 h-4" />
+                <span>CLOCK IN FOR TODAY'S DUTY</span>
+              </button>
+            )
           ) : (
             <>
               {attendance?.currentActivity === 'WORKING' && (
                 <>
                   <button
-                    onClick={() => handleQuickDutyAction('BREAK')}
+                    onClick={() => requestQuickDutyAction('BREAK')}
                     className="py-3 bg-lime-600 hover:bg-lime-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center space-x-1.5 transition-colors"
                   >
                     <Coffee className="w-3.5 h-3.5" />
@@ -237,7 +269,7 @@ export const EmployeeDashboardPage: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => handleQuickDutyAction('LUNCH')}
+                    onClick={() => requestQuickDutyAction('LUNCH')}
                     className="py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center space-x-1.5 transition-colors"
                   >
                     <Coffee className="w-3.5 h-3.5" />
@@ -245,7 +277,7 @@ export const EmployeeDashboardPage: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => handleQuickDutyAction('CLOCK_OUT')}
+                    onClick={() => requestQuickDutyAction('CLOCK_OUT')}
                     className="col-span-2 sm:col-span-3 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center space-x-1.5 transition-colors"
                   >
                     <Square className="w-3.5 h-3.5" />
@@ -256,7 +288,7 @@ export const EmployeeDashboardPage: React.FC = () => {
 
               {(attendance?.currentActivity === 'BREAK' || attendance?.currentActivity === 'LUNCH') && (
                 <button
-                  onClick={() => handleQuickDutyAction('RESUME')}
+                  onClick={() => requestQuickDutyAction('RESUME')}
                   className="col-span-2 sm:col-span-5 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-md flex items-center justify-center space-x-2 transition-all"
                 >
                   <Play className="w-4 h-4" />
@@ -305,6 +337,14 @@ export const EmployeeDashboardPage: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      <DutyActionConfirmModal
+        action={pendingAction}
+        workSeconds={liveTotals.workSeconds}
+        actionLoading={actionLoading}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => pendingAction && handleQuickDutyAction(pendingAction)}
+      />
 
       {/* Grid: Leave Balances & Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

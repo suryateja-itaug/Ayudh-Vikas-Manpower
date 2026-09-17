@@ -742,9 +742,16 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
         if (record.currentActivity !== 'OFF_DUTY') {
           return { message: 'You are already clocked in for duty.', attendance: record } as T;
         }
+        if (record.clockInTime && record.clockOutTime) {
+          return { message: 'Today\'s shift is already completed. Clock in is available again tomorrow.', attendance: record } as T;
+        }
 
         record.clockInTime = timestamp;
         record.clockOutTime = undefined;
+        record.totalWorkMinutes = 0;
+        record.totalBreakMinutes = 0;
+        record.totalLunchMinutes = 0;
+        record.sessions = [];
         record.dutyStatus = 'PRESENT';
         record.currentActivity = 'WORKING';
         startAttendanceSession(record, 'WORK', timestamp);
