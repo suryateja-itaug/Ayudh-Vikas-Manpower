@@ -14,12 +14,16 @@ import {
 import { api } from '../../services/api';
 import { EmployeeAttendance } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { DutyActionConfirmModal } from '../../components/DutyActionConfirmModal';
 import {
   formatAttendanceTime,
   formatDurationSeconds,
   getLiveAttendanceTotals,
   getSessionElapsedSeconds,
 } from '../../utils/attendanceTime';
+
+type DutyAction = 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT';
+type ConfirmableDutyAction = Extract<DutyAction, 'CLOCK_IN' | 'CLOCK_OUT'>;
 
 export const AttendancePage: React.FC = () => {
   const { user } = useAuth();
@@ -29,6 +33,7 @@ export const AttendancePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<ConfirmableDutyAction | null>(null);
 
   // Live timer tick
   useEffect(() => {
@@ -58,7 +63,13 @@ export const AttendancePage: React.FC = () => {
 
   const liveTotals = getLiveAttendanceTotals(todayAttendance, currentTime);
 
-  const handleDutyAction = async (action: 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT') => {
+  const completedToday = Boolean(
+    todayAttendance?.clockInTime &&
+    todayAttendance?.clockOutTime &&
+    todayAttendance.currentActivity === 'OFF_DUTY'
+  );
+
+  const handleDutyAction = async (action: DutyAction) => {
     try {
       setActionLoading(true);
       setFeedback(null);
@@ -72,7 +83,17 @@ export const AttendancePage: React.FC = () => {
       alert(err.message || 'Action failed.');
     } finally {
       setActionLoading(false);
+      setPendingAction(null);
     }
+  };
+
+  const requestDutyAction = (action: DutyAction) => {
+    if (action === 'CLOCK_IN' || action === 'CLOCK_OUT') {
+      setPendingAction(action);
+      return;
+    }
+
+    handleDutyAction(action);
   };
 
   return (
@@ -162,23 +183,25 @@ export const AttendancePage: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {/* Button: Clock In */}
           <button
-            disabled={actionLoading || todayAttendance?.currentActivity !== 'OFF_DUTY'}
-            onClick={() => handleDutyAction('CLOCK_IN')}
+            disabled={actionLoading || todayAttendance?.currentActivity !== 'OFF_DUTY' || completedToday}
+            onClick={() => requestDutyAction('CLOCK_IN')}
             className={`p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 font-bold text-xs transition-all ${
-              todayAttendance?.currentActivity === 'OFF_DUTY'
+              todayAttendance?.currentActivity === 'OFF_DUTY' && !completedToday
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 hover:scale-[1.02]'
                 : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
             }`}
           >
-            <Play className="w-5 h-5" />
-            <span>CLOCK IN</span>
-            <span className="text-[10px] font-normal opacity-80">Start Duty Shift</span>
+            {completedToday ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Play className="w-5 h-5" />}
+            <span>{completedToday ? 'SHIFT COMPLETED' : 'CLOCK IN'}</span>
+            <span className="text-[10px] font-normal opacity-80">
+              {completedToday ? 'Available next day only' : 'Start Duty Shift'}
+            </span>
           </button>
 
           {/* Button: Take Break */}
           <button
             disabled={actionLoading || todayAttendance?.currentActivity !== 'WORKING'}
-            onClick={() => handleDutyAction('BREAK')}
+            onClick={() => requestDutyAction('BREAK')}
             className={`p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 font-bold text-xs transition-all ${
               todayAttendance?.currentActivity === 'WORKING'
                 ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20 hover:scale-[1.02]'
@@ -193,7 +216,7 @@ export const AttendancePage: React.FC = () => {
           {/* Button: Lunch */}
           <button
             disabled={actionLoading || todayAttendance?.currentActivity !== 'WORKING'}
-            onClick={() => handleDutyAction('LUNCH')}
+            onClick={() => requestDutyAction('LUNCH')}
             className={`p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 font-bold text-xs transition-all ${
               todayAttendance?.currentActivity === 'WORKING'
                 ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 hover:scale-[1.02]'
@@ -208,7 +231,7 @@ export const AttendancePage: React.FC = () => {
           {/* Button: Resume */}
           <button
             disabled={actionLoading || (todayAttendance?.currentActivity !== 'BREAK' && todayAttendance?.currentActivity !== 'LUNCH')}
-            onClick={() => handleDutyAction('RESUME')}
+            onClick={() => requestDutyAction('RESUME')}
             className={`p-4 rounded-2xl flex flex-col items-center justify-center space-y-2 font-bold text-xs transition-all ${
               todayAttendance?.currentActivity === 'BREAK' || todayAttendance?.currentActivity === 'LUNCH'
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 hover:scale-[1.02] animate-pulse'
@@ -225,7 +248,7 @@ export const AttendancePage: React.FC = () => {
         {todayAttendance?.currentActivity === 'WORKING' && (
           <button
             disabled={actionLoading}
-            onClick={() => handleDutyAction('CLOCK_OUT')}
+            onClick={() => requestDutyAction('CLOCK_OUT')}
             className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-bold text-xs shadow-md flex items-center justify-center space-x-2 transition-all hover:scale-[1.01]"
           >
             <Square className="w-4 h-4" />
@@ -240,6 +263,14 @@ export const AttendancePage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <DutyActionConfirmModal
+        action={pendingAction}
+        workSeconds={liveTotals.workSeconds}
+        actionLoading={actionLoading}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => pendingAction && handleDutyAction(pendingAction)}
+      />
 
       {/* Today's Duty Sessions Timeline */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-4">
