@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, ClipboardCheck, Eye, FileText, UserPlus, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Eye, FileText, UserPlus, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
 import { ManpowerApplication } from '../../types';
@@ -7,6 +7,7 @@ import { ManpowerApplication } from '../../types';
 export const StaffPortalPage: React.FC = () => {
   const [applications, setApplications] = useState<ManpowerApplication[]>([]);
   const [selectedApplication, setSelectedApplication] = useState<ManpowerApplication | null>(null);
+  const [expandedApplicationId, setExpandedApplicationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadApplications = async () => {
@@ -50,7 +51,7 @@ export const StaffPortalPage: React.FC = () => {
           <thead className="bg-slate-50 text-slate-500 uppercase text-[10px]">
             <tr>
               <th className="text-left p-3">Candidate</th>
-              <th className="text-left p-3">Job</th>
+              <th className="text-left p-3">Mobile</th>
               <th className="text-left p-3">Staff Status</th>
               <th className="text-right p-3">Action</th>
             </tr>
@@ -59,24 +60,38 @@ export const StaffPortalPage: React.FC = () => {
             {loading ? (
               <tr><td colSpan={4} className="p-8 text-center text-slate-400">Loading...</td></tr>
             ) : applications.map((app: any) => (
-              <tr key={app.id}>
-                <td className="p-3 font-bold text-slate-900">{app.candidate?.fullName || app.candidateId}</td>
-                <td className="p-3 text-slate-600">{app.job?.title || app.jobId}</td>
-                <td className="p-3">{app.staffReviewStatus || 'PENDING'}</td>
-                <td className="p-3 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => setSelectedApplication(app)} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold inline-flex items-center gap-1">
-                      <Eye className="w-3.5 h-3.5" />
-                      Review
-                    </button>
-                    {app.staffReviewStatus === 'STAFF_APPROVED' ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-700 font-bold px-2"><CheckCircle2 className="w-4 h-4" /> Approved</span>
-                    ) : (
-                      <button onClick={() => review(app.id, 'APPROVE')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold">Approve & Process</button>
-                    )}
-                  </div>
-                </td>
-              </tr>
+              <React.Fragment key={app.id}>
+                <tr className="hover:bg-emerald-50/60 cursor-pointer" onClick={() => setExpandedApplicationId(prev => prev === app.id ? null : app.id)}>
+                  <td className="p-3 font-bold text-slate-900">
+                    <span className="inline-flex items-center gap-2">
+                      {expandedApplicationId === app.id ? <ChevronDown className="w-4 h-4 text-emerald-600" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                      {app.candidate?.fullName || app.candidateId}
+                    </span>
+                  </td>
+                  <td className="p-3 text-slate-600">{app.candidate?.mobile || '-'}</td>
+                  <td className="p-3">{app.staffReviewStatus || 'PENDING'}</td>
+                  <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => setSelectedApplication(app)} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold inline-flex items-center gap-1">
+                        <Eye className="w-3.5 h-3.5" />
+                        Review
+                      </button>
+                      {app.staffReviewStatus === 'STAFF_APPROVED' ? (
+                        <span className="inline-flex items-center gap-1 text-emerald-700 font-bold px-2"><CheckCircle2 className="w-4 h-4" /> Approved</span>
+                      ) : (
+                        <button onClick={() => review(app.id, 'APPROVE')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold">Approve & Process</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+                {expandedApplicationId === app.id && (
+                  <tr>
+                    <td colSpan={4} className="p-4 bg-slate-50">
+                      <InlineCandidateDetails application={app} />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -138,7 +153,7 @@ const ReviewModal = ({ application, onClose, onApprove }: { application: Manpowe
             <Detail label="PF Account Number" value={candidate.pfAccountNumber || 'N/A'} />
             <Detail label="Government Document" value={candidate.governmentDocumentType} />
             <Detail label="Document Number" value={candidate.governmentDocumentNumber} />
-            <Detail label="Document Upload / Reference" value={candidate.governmentDocumentUrl} />
+            <Detail label="Uploaded Document" value={candidate.governmentDocumentUrl} />
             <Detail label="Resume" value={candidate.resumeUrl} />
             <Detail label="Registration Scope" value={candidate.registrationScope} />
             <Detail label="AV Completed At" value={candidate.avRegistrationCompletedAt} />
@@ -176,6 +191,36 @@ const ReviewModal = ({ application, onClose, onApprove }: { application: Manpowe
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+const InlineCandidateDetails = ({ application }: { application: ManpowerApplication }) => {
+  const app = application as any;
+  const candidate = app.candidate || {};
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 text-xs">
+      <Detail label="Full Name" value={candidate.fullName} />
+      <Detail label="Mobile / Username" value={candidate.mobile} />
+      <Detail label="Email" value={candidate.email} />
+      <Detail label="Date of Birth" value={candidate.dob} />
+      <Detail label="Qualification" value={candidate.qualification} />
+      <Detail label="Graduation / Course" value={candidate.graduation} />
+      <Detail label="Skills" value={Array.isArray(candidate.skills) ? candidate.skills.join(', ') : candidate.skills} />
+      <Detail label="Experience Years" value={candidate.experienceYears} />
+      <Detail label="Detailed Experience" value={candidate.detailedExperience} />
+      <Detail label="Preferred Job" value={candidate.preferredJob} />
+      <Detail label="Preferred Location" value={candidate.preferredLocation} />
+      <Detail label="Address" value={candidate.address} />
+      <Detail label="ESIC Number" value={candidate.esicNumber || 'N/A'} />
+      <Detail label="PF Account Number" value={candidate.pfAccountNumber || 'N/A'} />
+      <Detail label="Government Document" value={candidate.governmentDocumentType} />
+      <Detail label="Document Number" value={candidate.governmentDocumentNumber} />
+      <Detail label="Uploaded Document" value={candidate.governmentDocumentUrl} />
+      <Detail label="Resume" value={candidate.resumeUrl} />
+      <Detail label="Payment Mode" value={app.paymentMode || 'ONLINE'} />
+      <Detail label="Staff Review Status" value={app.staffReviewStatus || 'PENDING'} />
     </div>
   );
 };

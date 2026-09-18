@@ -1069,6 +1069,14 @@
       "mobile": "9818689467",
       "role": "candidate",
       "createdAt": "2026-02-04T14:39:44.574Z"
+    },
+    {
+      "id": "usr_cand_154be509",
+      "name": "Sukanth Rajan",
+      "email": "sukanthraj@gmsil.com",
+      "mobile": "7035682079",
+      "role": "candidate",
+      "createdAt": "2026-09-18T13:22:43.300Z"
     }
   ],
   "candidateProfiles": [
@@ -4040,6 +4048,38 @@
       "registrationStatus": "ACTIVE",
       "createdAt": "2026-02-04T14:39:44.574Z",
       "updatedAt": "2026-02-04T14:39:44.574Z"
+    },
+    {
+      "id": "prof_596ccf2d",
+      "userId": "usr_cand_154be509",
+      "fullName": "Sukanth Rajan",
+      "mobile": "7035682079",
+      "email": "sukanthraj@gmsil.com",
+      "dob": "1998-05-14",
+      "qualification": "Graduate",
+      "graduation": "btech",
+      "skills": [
+        "Office Administration",
+        "Tally ERP",
+        "Customer Relations",
+        "Documentation"
+      ],
+      "experienceYears": 0,
+      "preferredJob": "Office Assistant",
+      "preferredLocation": "Hyderabad",
+      "address": "560 Herndon Pkwy,\n2nd street 3rd lane",
+      "resumeUrl": "/documents/resumes/rahul_sharma_resume.pdf",
+      "registrationStatus": "PENDING_PAYMENT",
+      "createdAt": "2026-09-18T13:22:43.300Z",
+      "updatedAt": "2026-09-18T13:22:43.300Z",
+      "passwordHash": "Sunsun@55",
+      "registrationScope": "AV_JOBS",
+      "detailedExperience": "no expereince",
+      "esicNumber": "N/A",
+      "pfAccountNumber": "N/A",
+      "governmentDocumentType": "AADHAAR",
+      "governmentDocumentNumber": "963852741852",
+      "avRegistrationCompletedAt": "2026-09-18T13:22:43.300Z"
     }
   ],
   "registrations": [
@@ -4077,6 +4117,15 @@
       "transactionId": "TXN_AVF_2026_001928",
       "createdAt": "2026-01-10T10:10:00.000Z",
       "verifiedAt": "2026-01-10T10:15:00.000Z"
+    },
+    {
+      "id": "order_e9644f1e",
+      "userId": "usr_cand_154be509",
+      "purpose": "CANDIDATE_REGISTRATION",
+      "amount": 10,
+      "currency": "INR",
+      "status": "PENDING",
+      "createdAt": "2026-09-18T13:22:43.300Z"
     }
   ],
   "jobs": [
@@ -4844,6 +4893,58 @@
     }
   ],
   "applications": [
+    {
+      "id": "app_47af6209",
+      "candidateId": "prof_cand_01",
+      "userId": "usr_cand_01",
+      "jobId": "job_all_04",
+      "jobCategory": "ALL_JOB",
+      "appliedDate": "2026-09-18T13:12:42.457Z",
+      "resumeUrl": "/documents/resumes/rahul_sharma_resume.pdf",
+      "applicationStatus": "APPLIED",
+      "notes": "",
+      "createdAt": "2026-09-18T13:12:42.457Z",
+      "updatedAt": "2026-09-18T13:12:42.457Z"
+    },
+    {
+      "id": "app_2253aa94",
+      "candidateId": "prof_cand_01",
+      "userId": "usr_cand_01",
+      "jobId": "job_all_03",
+      "jobCategory": "ALL_JOB",
+      "appliedDate": "2026-09-18T12:52:21.704Z",
+      "resumeUrl": "/documents/resumes/rahul_sharma_resume.pdf",
+      "applicationStatus": "APPLIED",
+      "notes": "",
+      "createdAt": "2026-09-18T12:52:21.704Z",
+      "updatedAt": "2026-09-18T12:52:21.704Z"
+    },
+    {
+      "id": "app_20f0edb3",
+      "candidateId": "prof_cand_01",
+      "userId": "usr_cand_01",
+      "jobId": "job_all_02",
+      "jobCategory": "ALL_JOB",
+      "appliedDate": "2026-09-18T12:21:56.238Z",
+      "resumeUrl": "/documents/resumes/rahul_sharma_resume.pdf",
+      "applicationStatus": "APPLIED",
+      "notes": "",
+      "createdAt": "2026-09-18T12:21:56.238Z",
+      "updatedAt": "2026-09-18T12:21:56.238Z"
+    },
+    {
+      "id": "app_0368e29f",
+      "candidateId": "prof_cand_01",
+      "userId": "usr_cand_01",
+      "jobId": "job_all_01",
+      "jobCategory": "ALL_JOB",
+      "appliedDate": "2026-09-18T12:21:51.448Z",
+      "resumeUrl": "/documents/resumes/rahul_sharma_resume.pdf",
+      "applicationStatus": "APPLIED",
+      "notes": "",
+      "createdAt": "2026-09-18T12:21:51.448Z",
+      "updatedAt": "2026-09-18T12:21:51.448Z"
+    },
     {
       "id": "app_hist_001",
       "candidateId": "prof_hist_001",
@@ -7396,6 +7497,50 @@
       "isRead": false,
       "deliveryChannel": "IN_APP",
       "createdAt": "2026-02-07T15:05:00.000Z"
+    },
+    {
+      "id": "notif_1317f714",
+      "recipientUserId": "usr_cand_01",
+      "title": "Application Received",
+      "message": "Your application for \"Junior Software Engineer (Web & Full-Stack)\" at Tata Consultancy Services (Partner Placement) was submitted successfully. Application ID: app_0368e29f.",
+      "type": "APPLICATION_SUBMITTED",
+      "linkUrl": "/manpower/applications",
+      "isRead": false,
+      "deliveryChannel": "IN_APP",
+      "createdAt": "2026-09-18T12:21:51.448Z"
+    },
+    {
+      "id": "notif_4cf4b6b6",
+      "recipientUserId": "usr_cand_01",
+      "title": "Application Received",
+      "message": "Your application for \"IT Desktop Support & Systems Technician\" at Wipro InfoTech (Client Operations) was submitted successfully. Application ID: app_20f0edb3.",
+      "type": "APPLICATION_SUBMITTED",
+      "linkUrl": "/manpower/applications",
+      "isRead": false,
+      "deliveryChannel": "IN_APP",
+      "createdAt": "2026-09-18T12:21:56.238Z"
+    },
+    {
+      "id": "notif_eea245da",
+      "recipientUserId": "usr_cand_01",
+      "title": "Application Received",
+      "message": "Your application for \"Accounts & Billing Executive\" at Reliance Retail Logistics was submitted successfully. Application ID: app_2253aa94.",
+      "type": "APPLICATION_SUBMITTED",
+      "linkUrl": "/manpower/applications",
+      "isRead": false,
+      "deliveryChannel": "IN_APP",
+      "createdAt": "2026-09-18T12:52:21.704Z"
+    },
+    {
+      "id": "notif_492fb613",
+      "recipientUserId": "usr_cand_01",
+      "title": "Application Received",
+      "message": "Your application for \"Warehouse Operations & Inventory Lead\" at Flipkart Fulfillment Center was submitted successfully. Application ID: app_47af6209.",
+      "type": "APPLICATION_SUBMITTED",
+      "linkUrl": "/manpower/applications",
+      "isRead": false,
+      "deliveryChannel": "IN_APP",
+      "createdAt": "2026-09-18T13:12:42.457Z"
     }
   ]
 }

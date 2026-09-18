@@ -164,22 +164,35 @@ export const CandidateDossierModal: React.FC<CandidateDossierModalProps> = ({ ca
               <p className="text-slate-800 mt-0.5">{data.profile.address}</p>
             </div>
 
-            {/* Resume Link */}
-            {data.profile.resumeUrl && (
-              <div className="flex items-center space-x-2 text-xs">
-                <FileText className="w-4 h-4 text-amber-600" />
-                <span className="text-slate-600">Attached Resume:</span>
-                <a
-                  href={data.profile.resumeUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-amber-600 hover:underline"
-                >
-                  View Candidate Resume Document →
-                </a>
-              </div>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {data.profile.resumeUrl && (
+                <div className="p-4 rounded-2xl border border-slate-200 text-xs space-y-2">
+                  <span className="font-bold text-slate-900 flex items-center space-x-1.5">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                    <span>Resume</span>
+                  </span>
+                  <a href={data.profile.resumeUrl} target="_blank" rel="noreferrer" className="font-semibold text-amber-600 hover:underline break-words">
+                    {data.profile.resumeUrl}
+                  </a>
+                </div>
+              )}
 
+              <div className="p-4 rounded-2xl border border-slate-200 text-xs space-y-2">
+                <span className="font-bold text-slate-900 flex items-center space-x-1.5">
+                  <Shield className="w-4 h-4 text-emerald-600" />
+                  <span>Uploaded Government Document</span>
+                </span>
+                <p className="text-slate-700">Type: <span className="font-semibold">{data.profile.governmentDocumentType || '-'}</span></p>
+                <p className="text-slate-700">Number: <span className="font-semibold">{data.profile.governmentDocumentNumber || '-'}</span></p>
+                {data.profile.governmentDocumentUrl ? (
+                  <a href={data.profile.governmentDocumentUrl} target="_blank" rel="noreferrer" className="font-semibold text-emerald-700 hover:underline break-words">
+                    {data.profile.governmentDocumentUrl}
+                  </a>
+                ) : (
+                  <p className="text-rose-600 font-semibold">No uploaded document found.</p>
+                )}
+              </div>
+            </div>
             {/* Past Applications Timeline */}
             <div className="space-y-3 pt-2">
               <span className="font-bold text-slate-900 text-sm">Application History ({data.applications.length})</span>
@@ -213,3 +226,4 @@ export const CandidateDossierModal: React.FC<CandidateDossierModalProps> = ({ ca
     </div>
   );
 };
+
