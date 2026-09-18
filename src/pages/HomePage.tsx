@@ -47,7 +47,7 @@ export const HomePage: React.FC = () => {
           </h1>
 
           <p className="text-emerald-50/85 text-sm sm:text-base leading-relaxed max-w-2xl">
-            Connecting aspiring candidates with career opportunities across Ayudh Vikas Foundation divisions and reputable corporate partners. Featuring job-wise Rs.10 application verification, 3-level merit confirmations, and integrated duty attendance.
+            Connecting aspiring candidates with career opportunities across Ayudh Vikas Foundation divisions and reputable corporate partners. Featuring one-time Rs.10 portal registration, 3-level merit confirmations, and integrated duty attendance.
           </p>
 
           {/* Core Action Buttons */}
@@ -57,7 +57,7 @@ export const HomePage: React.FC = () => {
               className="px-5 py-3 rounded-xl bg-gradient-to-r from-lime-400 to-emerald-500 hover:from-lime-500 hover:to-emerald-600 text-emerald-950 font-semibold text-sm shadow-lg shadow-lime-500/25 flex items-center space-x-2 transition-all hover:scale-[1.02]"
             >
               <Briefcase className="w-4 h-4" />
-              <span>Browse AV Jobs</span>
+              <span>Register for AV Jobs</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
@@ -145,12 +145,12 @@ export const HomePage: React.FC = () => {
                 1
               </span>
               <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded">
-                ₹10 Fixed
+                Rs.10 Fixed
               </span>
             </div>
-            <h3 className="font-bold text-slate-900 text-sm">Candidate Profile & Job Application</h3>
+            <h3 className="font-bold text-slate-900 text-sm">Candidate Portal Registration</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Candidate profile details are captured during each job application with a secure Rs.10 verification payment.
+              Candidate details are captured once with a secure Rs.10 portal registration payment.
             </p>
           </div>
 
@@ -332,11 +332,11 @@ export const HomePage: React.FC = () => {
         <div className="space-y-2 max-w-xl">
           <div className="flex items-center space-x-2 text-lime-100 text-xs font-semibold uppercase tracking-wider">
             <CreditCard className="w-4 h-4" />
-            <span>Rs.10 Per Job Application</span>
+            <span>Rs.10 One-Time Portal Registration</span>
           </div>
-          <h3 className="text-2xl font-bold text-white">Choose a job first. Apply with the candidate form.</h3>
+          <h3 className="text-2xl font-bold text-white">Register once. Apply without repeated fees.</h3>
           <p className="text-xs sm:text-sm text-emerald-50 leading-relaxed">
-            Candidate details and payment are collected only after you click Apply on a specific vacancy, so each application is linked to the right job.
+            First-time candidates complete portal registration once. After that, job applications reuse the active candidate profile.
           </p>
         </div>
 

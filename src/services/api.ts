@@ -87,7 +87,7 @@ class ApiService {
     return this.request<{ users: any[] }>('/auth/available-users');
   }
 
-  public async login(emailOrRole: { email?: string; role?: string }) {
+  public async login(emailOrRole: { email?: string; mobile?: string; username?: string; password?: string; role?: string }) {
     return this.request<{
       token: string;
       user: User;
@@ -110,17 +110,20 @@ class ApiService {
   }
 
   // Candidate Registration & Payment
-  public async registerCandidate(data: Partial<CandidateProfile> & { jobId?: string }) {
+  public async registerCandidate(data: Partial<CandidateProfile> & { jobId?: string; password?: string; registrationScope?: 'ALL_JOBS' | 'AV_JOBS'; paymentMode?: 'ONLINE' | 'CASH' }) {
     return this.request<{
       message: string;
       profile: CandidateProfile;
+      application?: ManpowerApplication;
       paymentOrder: {
         orderId: string;
         amount: number;
         currency: string;
         candidateName: string;
         mobile: string;
-      };
+        jobId?: string;
+        jobTitle?: string;
+      } | null;
     }>('/candidate/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -226,6 +229,17 @@ class ApiService {
 
   public async getCandidateApplications() {
     return this.request<{ applications: ManpowerApplication[] }>('/candidate/applications');
+  }
+
+  public async getStaffAvApplications() {
+    return this.request<{ applications: ManpowerApplication[] }>('/staff/av-applications');
+  }
+
+  public async reviewStaffAvApplication(id: string, data: { action: 'APPROVE' | 'REJECT'; remarks?: string }) {
+    return this.request<{ message: string; application: ManpowerApplication }>(`/staff/av-applications/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   public async getAdminApplications(category: 'av' | 'all', params: Record<string, any> = {}) {
