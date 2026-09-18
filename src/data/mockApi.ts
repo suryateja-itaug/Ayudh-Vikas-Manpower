@@ -96,7 +96,7 @@ const candidateProfiles: CandidateProfile[] = [
     resumeUrl: '/documents/resumes/rahul-sharma.pdf',
     registrationStatus: 'ACTIVE',
     registrationScope: 'AV_JOBS',
-    passwordHash: 'Password1',
+    passwordHash: 'Candidate@123',
     detailedExperience: '2 years in office support and data entry.',
     esicNumber: 'ESIC987654321',
     pfAccountNumber: 'PFHYD123456',
@@ -124,7 +124,7 @@ const candidateProfiles: CandidateProfile[] = [
     resumeUrl: '/documents/resumes/anita-reddy.pdf',
     registrationStatus: 'ACTIVE',
     registrationScope: 'AV_JOBS',
-    passwordHash: 'Password1',
+    passwordHash: 'Candidate@123',
     detailedExperience: '3 years in patient assistance and caregiver support.',
     esicNumber: 'ESIC984812345',
     pfAccountNumber: 'PFSEC984812',
@@ -528,8 +528,16 @@ let notifications: ManpowerNotification[] = [
 
 const paymentOrders: PaymentOrder[] = [];
 
+const demoPasswords: Record<string, string> = {
+  usr_admin_01: 'Admin@123',
+  usr_emp_01: 'Employee@123',
+  usr_staff_01: 'Staff@123',
+  usr_cand_01: 'Candidate@123',
+  usr_cand_02: 'Candidate@123',
+};
+
 function currentUser(token: string | null) {
-  return users.find(u => u.id === token) || users[0];
+  return users.find(u => u.id === token);
 }
 
 function paginate<T>(items: T[], page = 1, limit = 20) {
@@ -554,13 +562,25 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
   const [pathname, queryString = ''] = endpoint.split('?');
   const query = new URLSearchParams(queryString);
   const user = currentUser(token);
-  const candidateProfile = candidateProfiles.find(p => p.userId === user.id) || candidateProfiles[0];
+  const candidateProfile = user ? candidateProfiles.find(p => p.userId === user.id) : undefined;
 
   if (pathname === '/auth/available-users') {
-    return { users: users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, label: `${u.role.replace('_', ' ')} demo persona` })) } as T;
+    return {
+      users: users.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        mobile: u.mobile,
+        username: u.role === 'candidate' ? u.mobile : u.email,
+        password: demoPasswords[u.id] || 'Password@123',
+        role: u.role,
+        label: `${u.role.replace('_', ' ')} demo persona`,
+      })),
+    } as T;
   }
 
   if (pathname === '/auth/me') {
+    if (!user) return undefined;
     const profile = candidateProfiles.find(p => p.userId === user.id);
     const emp = employees.find(e => e.userId === user.id);
     const registration = profile ? registrations.find(r => r.candidateId === profile.id && r.status === 'ACTIVE') : undefined;
@@ -578,10 +598,11 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
     const loginId = String(body.mobile || body.username || body.email || '').trim().toLowerCase();
     const matchedUser = loginId
       ? users.find(u => u.email.toLowerCase() === loginId || u.mobile === loginId)
-      : users.find(u => u.role === body.role) || user;
+      : users.find(u => u.role === body.role);
     if (!matchedUser) return undefined;
     const profile = candidateProfiles.find(p => p.userId === matchedUser.id);
-    if (body.password && profile?.passwordHash && profile.passwordHash !== body.password) return undefined;
+    const expectedPassword = profile?.passwordHash || demoPasswords[matchedUser.id];
+    if (!body.password || (expectedPassword && expectedPassword !== body.password)) return undefined;
     return {
       token: matchedUser.id,
       user: matchedUser,

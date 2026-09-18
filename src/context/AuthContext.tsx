@@ -34,12 +34,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isRegisteredCandidate, setIsRegisteredCandidate] = useState<boolean>(false);
   const [registration, setRegistration] = useState<ManpowerRegistration | null>(null);
   const [availableUsers, setAvailableUsers] = useState<AvailableUserOption[]>([]);
-  const [portalMode, setPortalMode] = useState<'candidate' | 'employee' | 'admin' | 'staff'>('admin');
+  const [portalMode, setPortalMode] = useState<'candidate' | 'employee' | 'admin' | 'staff'>('candidate');
   const [loading, setLoading] = useState<boolean>(true);
 
   const refreshUserData = async () => {
     try {
       setLoading(true);
+      if (!api.getToken()) {
+        setUser(null);
+        setCandidateProfile(null);
+        setEmployeeRecord(null);
+        setIsRegisteredCandidate(false);
+        setRegistration(null);
+        setPortalMode('candidate');
+        return;
+      }
       const data = await api.getMe();
       setUser(data.user);
       setCandidateProfile(data.candidateProfile || null);
@@ -59,6 +68,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('Failed to load authenticated user:', err);
+      api.setToken(null);
+      setUser(null);
+      setCandidateProfile(null);
+      setEmployeeRecord(null);
+      setIsRegisteredCandidate(false);
+      setRegistration(null);
+      setPortalMode('candidate');
     } finally {
       setLoading(false);
     }

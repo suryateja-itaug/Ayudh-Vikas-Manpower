@@ -38,12 +38,16 @@ function resolveUser(req: Request): User | undefined {
     // Support token format "userId" or "Bearer usr_..."
     const foundUser = db.users.find(u => u.id === token || u.email === token);
     if (foundUser) return foundUser;
+    const demoUser = demoLoginUsers.find(u => u.id === token || u.email === token);
+    if (demoUser) return demoUser;
   }
   // Optional cookie / header fallback
   const customUserId = req.headers['x-user-id'] as string;
   if (customUserId) {
     const foundUser = db.users.find(u => u.id === customUserId || u.email === customUserId);
     if (foundUser) return foundUser;
+    const demoUser = demoLoginUsers.find(u => u.id === customUserId || u.email === customUserId);
+    if (demoUser) return demoUser;
   }
   return undefined;
 }
@@ -87,6 +91,24 @@ function requireEmployee(req: AuthenticatedRequest, res: Response, next: NextFun
   next();
 }
 
+const demoPasswords: Record<string, string> = {
+  usr_admin_01: 'Admin@123',
+  usr_hr_01: 'Hr@12345',
+  usr_ops_01: 'Ops@12345',
+  usr_staff_01: 'Staff@123',
+  usr_emp_01: 'Employee@123',
+  usr_cand_01: 'Candidate@123',
+  usr_cand_02: 'Candidate@123',
+};
+
+const demoLoginUsers: User[] = [
+  { id: 'usr_admin_01', name: 'Dr. Ramesh Chandra (Director)', email: 'admin@ayudhvikas.org', mobile: '9849012345', role: 'admin', createdAt: '2025-01-01T00:00:00.000Z' },
+  { id: 'usr_hr_01', name: 'Sunita Sharma (HR Lead)', email: 'hr@ayudhvikas.org', mobile: '9849012346', role: 'hr_admin', createdAt: '2025-01-01T00:00:00.000Z' },
+  { id: 'usr_ops_01', name: 'Manoj Kumar (Operations Head)', email: 'ops@ayudhvikas.org', mobile: '9849012347', role: 'ops_admin', createdAt: '2025-01-01T00:00:00.000Z' },
+  { id: 'usr_staff_01', name: 'Kavya Rao (Front Desk Staff)', email: 'staff@ayudhvikas.org', mobile: '9849012348', role: 'staff', createdAt: '2025-01-01T00:00:00.000Z' },
+  { id: 'usr_emp_01', name: 'Vikram Singh', email: 'vikram.singh@ayudhvikas.org', mobile: '9123456789', role: 'employee', createdAt: '2026-01-10T09:00:00.000Z' },
+];
+
 // ==========================================
 // 1. AUTHENTICATION & QUICK SWITCH
 // ==========================================
@@ -97,6 +119,14 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
   const loginId = String(mobile || username || email || '').trim().toLowerCase();
   if (loginId) {
     user = db.users.find(u => u.email.toLowerCase() === loginId || u.mobile === loginId);
+    if (!user) {
+      const demoUser = demoLoginUsers.find(u => u.email.toLowerCase() === loginId || u.mobile === loginId);
+      if (demoUser) {
+        user = { ...demoUser };
+        db.users.push(user);
+        db.save();
+      }
+    }
   } else if (role) {
     user = db.users.find(u => u.role === role);
   }
@@ -105,7 +135,8 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
   }
 
   const candidateProfile = db.candidateProfiles.find(p => p.userId === user?.id);
-  if (password && candidateProfile?.passwordHash && candidateProfile.passwordHash !== password) {
+  const expectedPassword = candidateProfile?.passwordHash || demoPasswords[user.id];
+  if (!password || (expectedPassword && expectedPassword !== password)) {
     return res.status(401).json({ error: 'Invalid mobile number or password.' });
   }
 
@@ -121,7 +152,7 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
 });
 
 apiRouter.get('/auth/me', (req: AuthenticatedRequest, res: Response) => {
-  const user = resolveUser(req) || db.users.find(u => u.role === 'admin'); // Default fallback for preview
+  const user = resolveUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -147,6 +178,9 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       name: 'Dr. Ramesh Chandra (Director)',
       email: 'admin@ayudhvikas.org',
       role: 'admin',
+      mobile: '9849012345',
+      username: 'admin@ayudhvikas.org',
+      password: 'Admin@123',
       label: 'Managing Director (Final Approver)',
     },
     {
@@ -154,6 +188,9 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       name: 'Sunita Sharma',
       email: 'hr@ayudhvikas.org',
       role: 'hr_admin',
+      mobile: '9849012346',
+      username: 'hr@ayudhvikas.org',
+      password: 'Hr@12345',
       label: 'HR Recruitment Lead (Level 1 Approver)',
     },
     {
@@ -161,6 +198,9 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       name: 'Manoj Kumar',
       email: 'ops@ayudhvikas.org',
       role: 'ops_admin',
+      mobile: '9849012347',
+      username: 'ops@ayudhvikas.org',
+      password: 'Ops@12345',
       label: 'Operations Head (Level 2 Approver)',
     },
     {
@@ -168,6 +208,9 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       name: 'Kavya Rao',
       email: 'staff@ayudhvikas.org',
       role: 'staff',
+      mobile: '9849012348',
+      username: 'staff@ayudhvikas.org',
+      password: 'Staff@123',
       label: 'Staff Portal (AV application review & walk-in registration)',
     },
     {
@@ -175,6 +218,9 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       name: 'Vikram Singh',
       email: 'vikram.singh@ayudhvikas.org',
       role: 'employee',
+      mobile: '9123456789',
+      username: 'vikram.singh@ayudhvikas.org',
+      password: 'Employee@123',
       label: 'Active Employee (Duty & Attendance)',
     },
     {
@@ -182,6 +228,9 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       name: 'Rahul Sharma',
       email: 'rahul.sharma@example.com',
       role: 'candidate',
+      mobile: '9876543210',
+      username: '9876543210',
+      password: 'Candidate@123',
       label: 'Registered Candidate (Office Assistant applicant)',
     },
     {
@@ -189,6 +238,9 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       name: 'Anita Reddy',
       email: 'anita.reddy@example.com',
       role: 'candidate',
+      mobile: '9848123456',
+      username: '9848123456',
+      password: 'Candidate@123',
       label: 'Selected Candidate (In 3-Level Confirmation)',
     },
   ];
@@ -229,11 +281,8 @@ apiRouter.post('/candidate/register', (req: AuthenticatedRequest, res: Response)
     paymentMode,
   } = req.body;
 
-  if (!fullName || !mobile || !qualification || !password) {
-    return res.status(400).json({ error: 'Full name, mobile number, password, and qualification are required.' });
-  }
-  if (String(password).length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters and include one uppercase letter and one number.' });
+  if (!fullName || !mobile || !qualification) {
+    return res.status(400).json({ error: 'Full name, mobile number, and qualification are required.' });
   }
 
   const targetJob = jobId ? db.jobs.find(j => j.id === jobId) : undefined;
@@ -241,7 +290,7 @@ apiRouter.post('/candidate/register', (req: AuthenticatedRequest, res: Response)
     registrationScope === 'AV_JOBS' || targetJob?.jobCategory === 'AV_JOB' ? 'AV_JOBS' : 'ALL_JOBS';
 
   if (desiredScope === 'AV_JOBS' && (!esicNumber || !pfAccountNumber || !governmentDocumentType || !governmentDocumentNumber || !governmentDocumentUrl)) {
-    return res.status(400).json({ error: 'ESIC, PF, and government document details are required for AV Jobs registration. Use N/A for ESIC or PF if not available.' });
+    return res.status(400).json({ error: 'ESIC, PF, and government document upload are required for AV Jobs registration. Use N/A for ESIC or PF if not available.' });
   }
 
   const now = new Date().toISOString();
@@ -252,6 +301,13 @@ apiRouter.post('/candidate/register', (req: AuthenticatedRequest, res: Response)
 
   let user = requester?.role === 'candidate' ? requester : undefined;
   user = user || db.users.find(u => u.mobile === mobile || u.email.toLowerCase() === String(email || '').toLowerCase());
+  const existingProfileForUser = user ? db.candidateProfiles.find(p => p.userId === user!.id) : undefined;
+  if (!existingProfileForUser && !password) {
+    return res.status(400).json({ error: 'Password is required for first-time registration.' });
+  }
+  if (password && (String(password).length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password))) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and include one uppercase letter and one number.' });
+  }
   if (!user) {
     user = {
       id: `usr_cand_${crypto.randomUUID().slice(0, 8)}`,
@@ -313,7 +369,7 @@ apiRouter.post('/candidate/register', (req: AuthenticatedRequest, res: Response)
   profile.preferredLocation = preferredLocation || profile.preferredLocation;
   profile.address = address || profile.address;
   if (resumeUrl) profile.resumeUrl = resumeUrl;
-  profile.passwordHash = password;
+  if (password) profile.passwordHash = password;
   profile.registrationScope = desiredScope === 'AV_JOBS' ? 'AV_JOBS' : (profile.registrationScope || 'ALL_JOBS');
   profile.detailedExperience = detailedExperience || profile.detailedExperience;
   profile.esicNumber = esicNumber || profile.esicNumber;
@@ -1044,7 +1100,7 @@ apiRouter.post('/admin/jobs/:id/notify-applicants', requireAdmin, (req: Authenti
 // ==========================================
 
 apiRouter.post('/applications/apply', (req: AuthenticatedRequest, res: Response) => {
-  const user = resolveUser(req) || db.users.find(u => u.role === 'candidate');
+  const user = resolveUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Authentication required to apply.' });
   }

@@ -52,7 +52,8 @@ export default function App() {
               <Route path="/manpower/jobs/:id" element={<JobDetailsPage />} />
               <Route path="/manpower/register" element={<CandidateRegisterPage />} />
               <Route path="/manpower/apply" element={<CandidateRegisterPage />} />
-              <Route path="/manpower/sign-in" element={<CandidateSignInPage />} />
+              <Route path="/manpower/login" element={<CandidateSignInPage />} />
+              <Route path="/manpower/sign-in" element={<Navigate to="/manpower/login" replace />} />
               <Route path="/candidate/register" element={<CandidateRegisterPage />} />
               <Route path="/manpower/applications" element={<CandidateApplicationsPage />} />
 

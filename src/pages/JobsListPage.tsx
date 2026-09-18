@@ -52,6 +52,7 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
   const [applyingJob, setApplyingJob] = useState<ManpowerJob | null>(null);
   const [applyNotes, setApplyNotes] = useState<string>('');
   const [applySubmitting, setApplySubmitting] = useState<boolean>(false);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(null);
   const [applyErrorMessage, setApplyErrorMessage] = useState<string | null>(null);
 
@@ -89,6 +90,17 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
     fetchJobs();
   }, [targetCategory, page, selectedQualification, graduationFilter, selectedLocation, selectedJobType, selectedClassification]);
 
+  useEffect(() => {
+    if (!isRegisteredCandidate) return;
+    api.getCandidateApplications()
+      .then(res => {
+        setAppliedJobIds(new Set((res.applications || []).map(app => app.jobId)));
+      })
+      .catch(() => {
+        // keep page usable even if history cannot load
+      });
+  }, [isRegisteredCandidate]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -115,10 +127,15 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
       setApplySubmitting(true);
       setApplyErrorMessage(null);
       const res = await api.applyForJob(job.id);
-      setApplySuccessMessage(`Application submitted! Application ID: ${res.application.id}`);
-      setTimeout(() => navigate('/manpower/applications'), 900);
+      setAppliedJobIds(prev => new Set(prev).add(job.id));
+      setApplySuccessMessage(`Thank you. You have applied for "${res.jobTitle || job.title}". We will notify you with updates regarding this job.`);
     } catch (err: any) {
-      setApplyErrorMessage(err.message || 'Failed to submit job application.');
+      if (String(err.message || '').toLowerCase().includes('already applied')) {
+        setAppliedJobIds(prev => new Set(prev).add(job.id));
+        setApplySuccessMessage(`You have already applied for "${job.title}". We will notify you with updates regarding this job.`);
+      } else {
+        setApplyErrorMessage(err.message || 'Failed to submit job application.');
+      }
     } finally {
       setApplySubmitting(false);
     }
@@ -150,6 +167,21 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
 
   return (
     <div className="space-y-8 pb-16">
+      {(applySuccessMessage || applyErrorMessage) && (
+        <div className={`p-4 rounded-2xl border flex items-start justify-between gap-3 text-xs font-semibold ${
+          applySuccessMessage
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-rose-50 border-rose-200 text-rose-800'
+        }`}>
+          <div className="flex items-center gap-2">
+            {applySuccessMessage ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            <span>{applySuccessMessage || applyErrorMessage}</span>
+          </div>
+          <button onClick={() => { setApplySuccessMessage(null); setApplyErrorMessage(null); }} className="text-slate-400 hover:text-slate-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {/* Category Header Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -342,7 +374,9 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {jobs.map(job => (
+          {jobs.map(job => {
+            const alreadyApplied = appliedJobIds.has(job.id);
+            return (
             <div
               key={job.id}
               role="button"
@@ -446,8 +480,18 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
                   View Details
                 </Link>
 
-                {job.status === 'OPEN' ? (
+                {alreadyApplied ? (
                   <button
+                    type="button"
+                    disabled
+                    className="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Applied</span>
+                  </button>
+                ) : job.status === 'OPEN' ? (
+                  <button
+                    disabled={applySubmitting}
                     onClick={e => {
                       e.stopPropagation();
                       handleOpenApplyModal(job);
@@ -464,7 +508,8 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

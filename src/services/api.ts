@@ -24,19 +24,22 @@ const API_BASE = '/api';
 
 class ApiService {
   private token: string | null = null;
+  private readonly tokenKey = 'av_manpower_token';
 
   public setToken(token: string | null) {
     this.token = token;
+    localStorage.removeItem(this.tokenKey);
     if (token) {
-      localStorage.setItem('av_manpower_token', token);
+      sessionStorage.setItem(this.tokenKey, token);
     } else {
-      localStorage.removeItem('av_manpower_token');
+      sessionStorage.removeItem(this.tokenKey);
     }
   }
 
   public getToken(): string | null {
     if (!this.token) {
-      this.token = localStorage.getItem('av_manpower_token') || 'usr_admin_01'; // Default admin session for seamless review
+      localStorage.removeItem(this.tokenKey);
+      this.token = sessionStorage.getItem(this.tokenKey);
     }
     return this.token;
   }
