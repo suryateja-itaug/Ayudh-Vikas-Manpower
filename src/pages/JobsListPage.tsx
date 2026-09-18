@@ -105,15 +105,30 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
     setPage(1);
   };
 
-  const handleOpenApplyModal = (job: ManpowerJob) => {
-    navigate(`/manpower/register?jobId=${encodeURIComponent(job.id)}`);
+  const handleOpenApplyModal = async (job: ManpowerJob) => {
+    if (!isRegisteredCandidate) {
+      navigate(`/manpower/register?jobId=${encodeURIComponent(job.id)}`);
+      return;
+    }
+
+    try {
+      setApplySubmitting(true);
+      setApplyErrorMessage(null);
+      const res = await api.applyForJob(job.id);
+      setApplySuccessMessage(`Application submitted! Application ID: ${res.application.id}`);
+      setTimeout(() => navigate('/manpower/applications'), 900);
+    } catch (err: any) {
+      setApplyErrorMessage(err.message || 'Failed to submit job application.');
+    } finally {
+      setApplySubmitting(false);
+    }
   };
 
   const handleConfirmApplication = async () => {
     if (!applyingJob) return;
 
     if (!isRegisteredCandidate) {
-      setApplyErrorMessage('Active ₹10 candidate registration required before applying. Please complete registration first.');
+      setApplyErrorMessage('Active Rs.10 candidate registration required before applying. Please complete registration first.');
       return;
     }
 

@@ -17,9 +17,9 @@ interface AuthContextType {
   isRegisteredCandidate: boolean;
   registration: ManpowerRegistration | null;
   availableUsers: AvailableUserOption[];
-  portalMode: 'candidate' | 'employee' | 'admin';
+  portalMode: 'candidate' | 'employee' | 'admin' | 'staff';
   loading: boolean;
-  setPortalMode: (mode: 'candidate' | 'employee' | 'admin') => void;
+  setPortalMode: (mode: 'candidate' | 'employee' | 'admin' | 'staff') => void;
   switchUser: (userId: string) => Promise<void>;
   refreshUserData: () => Promise<void>;
   logout: () => void;
@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isRegisteredCandidate, setIsRegisteredCandidate] = useState<boolean>(false);
   const [registration, setRegistration] = useState<ManpowerRegistration | null>(null);
   const [availableUsers, setAvailableUsers] = useState<AvailableUserOption[]>([]);
-  const [portalMode, setPortalMode] = useState<'candidate' | 'employee' | 'admin'>('admin');
+  const [portalMode, setPortalMode] = useState<'candidate' | 'employee' | 'admin' | 'staff'>('admin');
   const [loading, setLoading] = useState<boolean>(true);
 
   const refreshUserData = async () => {
@@ -47,8 +47,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsRegisteredCandidate(data.isRegisteredCandidate);
       setRegistration(data.registration || null);
 
-      // Auto-set portal mode according to user role
-      if (['admin', 'hr_admin', 'ops_admin', 'director_admin'].includes(data.user.role)) {
+      // Auto-set portal mode according to user role, preserving explicit staff routes in preview mode.
+      if (window.location.pathname.startsWith('/manpower/staff') || data.user.role === 'staff') {
+        setPortalMode('staff');
+      } else if (['admin', 'hr_admin', 'ops_admin', 'director_admin'].includes(data.user.role)) {
         setPortalMode('admin');
       } else if (data.user.role === 'employee') {
         setPortalMode('employee');

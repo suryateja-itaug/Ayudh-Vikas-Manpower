@@ -116,7 +116,7 @@ export const CandidateApplicationsPage: React.FC = () => {
             <div>
               <h4 className="font-bold text-slate-900 text-xs">Apply from a Job Card</h4>
               <p className="text-xs text-slate-600">
-                Choose a vacancy first. The candidate form and Rs.10 payment are completed from that job application flow.
+                Complete the one-time Rs.10 portal registration, then apply for jobs without paying again.
               </p>
             </div>
           </div>
@@ -124,14 +124,14 @@ export const CandidateApplicationsPage: React.FC = () => {
             to="/manpower/jobs/av"
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shrink-0"
           >
-            Browse Jobs
+            Complete Registration
           </Link>
         </div>
       ) : (
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
           <div className="flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Candidate profile active. New Rs.10 payment is collected per job application.</span>
+            <span>Candidate profile active. No Rs.10 payment is collected per job application.</span>
           </div>
           <span className="font-mono text-[11px] bg-emerald-100/80 px-2 py-0.5 rounded text-emerald-900 font-semibold">
             Status: ACTIVE
