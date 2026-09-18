@@ -17,6 +17,7 @@ import {
   AppointmentLetter,
   ManpowerNotification,
   AttendanceSession,
+  PaymentOrder,
 } from './types.js';
 
 export const apiRouter = express.Router();
@@ -67,6 +68,15 @@ function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFuncti
   next();
 }
 
+function requireStaff(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const user = resolveUser(req);
+  if (!user || !['staff', 'admin', 'hr_admin'].includes(user.role)) {
+    return res.status(403).json({ error: 'Staff access required.' });
+  }
+  req.user = user;
+  next();
+}
+
 function requireEmployee(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   let user = resolveUser(req);
   if (!user || (user.role !== 'employee' && user.role !== 'admin')) {
@@ -82,10 +92,11 @@ function requireEmployee(req: AuthenticatedRequest, res: Response, next: NextFun
 // ==========================================
 
 apiRouter.post('/auth/login', (req: Request, res: Response) => {
-  const { email, role } = req.body;
+  const { email, mobile, username, password, role } = req.body;
   let user: User | undefined;
-  if (email) {
-    user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const loginId = String(mobile || username || email || '').trim().toLowerCase();
+  if (loginId) {
+    user = db.users.find(u => u.email.toLowerCase() === loginId || u.mobile === loginId);
   } else if (role) {
     user = db.users.find(u => u.role === role);
   }
@@ -93,8 +104,12 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'User not found. Please select a valid profile.' });
   }
 
-  // Check candidate registration if applicable
   const candidateProfile = db.candidateProfiles.find(p => p.userId === user?.id);
+  if (password && candidateProfile?.passwordHash && candidateProfile.passwordHash !== password) {
+    return res.status(401).json({ error: 'Invalid mobile number or password.' });
+  }
+
+  // Check candidate registration if applicable
   const employeeRecord = db.employees.find(e => e.userId === user?.id);
 
   res.json({
@@ -149,6 +164,13 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
       label: 'Operations Head (Level 2 Approver)',
     },
     {
+      id: 'usr_staff_01',
+      name: 'Kavya Rao',
+      email: 'staff@ayudhvikas.org',
+      role: 'staff',
+      label: 'Staff Portal (AV application review & walk-in registration)',
+    },
+    {
       id: 'usr_emp_01',
       name: 'Vikram Singh',
       email: 'vikram.singh@ayudhvikas.org',
@@ -177,7 +199,212 @@ apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
 // 2. CANDIDATE REGISTRATION & ₹10 PAYMENT
 // ==========================================
 
+apiRouter.post('/candidate/register-v2-disabled', (req: AuthenticatedRequest, res: Response) => {
+  res.status(410).json({ error: 'Use /candidate/register.' });
+});
+
 apiRouter.post('/candidate/register', (req: AuthenticatedRequest, res: Response) => {
+  const {
+    jobId,
+    registrationScope = 'ALL_JOBS',
+    password,
+    fullName,
+    mobile,
+    email,
+    dob,
+    qualification,
+    graduation,
+    skills,
+    experienceYears,
+    preferredJob,
+    preferredLocation,
+    address,
+    resumeUrl,
+    detailedExperience,
+    esicNumber,
+    pfAccountNumber,
+    governmentDocumentType,
+    governmentDocumentNumber,
+    governmentDocumentUrl,
+    paymentMode,
+  } = req.body;
+
+  if (!fullName || !mobile || !qualification || !password) {
+    return res.status(400).json({ error: 'Full name, mobile number, password, and qualification are required.' });
+  }
+  if (String(password).length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and include one uppercase letter and one number.' });
+  }
+
+  const targetJob = jobId ? db.jobs.find(j => j.id === jobId) : undefined;
+  const desiredScope: 'ALL_JOBS' | 'AV_JOBS' =
+    registrationScope === 'AV_JOBS' || targetJob?.jobCategory === 'AV_JOB' ? 'AV_JOBS' : 'ALL_JOBS';
+
+  if (desiredScope === 'AV_JOBS' && (!esicNumber || !pfAccountNumber || !governmentDocumentType || !governmentDocumentNumber || !governmentDocumentUrl)) {
+    return res.status(400).json({ error: 'ESIC, PF, and government document details are required for AV Jobs registration. Use N/A for ESIC or PF if not available.' });
+  }
+
+  const now = new Date().toISOString();
+  const requester = resolveUser(req);
+  if (paymentMode === 'CASH' && (!requester || !['staff', 'admin', 'hr_admin'].includes(requester.role))) {
+    return res.status(403).json({ error: 'Cash payment marking is available only from the staff portal.' });
+  }
+
+  let user = requester?.role === 'candidate' ? requester : undefined;
+  user = user || db.users.find(u => u.mobile === mobile || u.email.toLowerCase() === String(email || '').toLowerCase());
+  if (!user) {
+    user = {
+      id: `usr_cand_${crypto.randomUUID().slice(0, 8)}`,
+      name: fullName,
+      email: email || `${mobile}@candidate.local`,
+      mobile,
+      role: 'candidate',
+      createdAt: now,
+    };
+    db.users.push(user);
+  }
+
+  let profile = db.candidateProfiles.find(p => p.userId === user.id);
+  if (profile && targetJob) {
+    const alreadyApplied = db.applications.find(
+      a => a.candidateId === profile!.id && a.jobId === targetJob.id && a.applicationStatus !== 'WITHDRAWN'
+    );
+    if (alreadyApplied) {
+      return res.status(400).json({ error: `You have already applied for "${targetJob.title}".`, profile, application: alreadyApplied });
+    }
+  }
+
+  const normalizedSkills = Array.isArray(skills)
+    ? skills
+    : (skills ? String(skills).split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+
+  if (!profile) {
+    profile = {
+      id: `prof_${crypto.randomUUID().slice(0, 8)}`,
+      userId: user.id,
+      fullName,
+      mobile,
+      email: email || user.email,
+      dob: dob || '1998-01-01',
+      qualification,
+      graduation: graduation || 'Graduate',
+      skills: normalizedSkills,
+      experienceYears: Number(experienceYears) || 0,
+      preferredJob: preferredJob || targetJob?.title || 'Any Suitable Role',
+      preferredLocation: preferredLocation || 'Hyderabad',
+      address: address || '',
+      resumeUrl: resumeUrl || '/documents/resumes/sample_candidate_resume.pdf',
+      registrationStatus: 'PENDING_PAYMENT',
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.candidateProfiles.push(profile);
+  }
+
+  profile.fullName = fullName;
+  profile.mobile = mobile;
+  profile.email = email || user.email;
+  profile.dob = dob || profile.dob;
+  profile.qualification = qualification;
+  profile.graduation = graduation || profile.graduation;
+  profile.skills = normalizedSkills.length ? normalizedSkills : profile.skills;
+  profile.experienceYears = Number(experienceYears) || 0;
+  profile.preferredJob = preferredJob || targetJob?.title || profile.preferredJob;
+  profile.preferredLocation = preferredLocation || profile.preferredLocation;
+  profile.address = address || profile.address;
+  if (resumeUrl) profile.resumeUrl = resumeUrl;
+  profile.passwordHash = password;
+  profile.registrationScope = desiredScope === 'AV_JOBS' ? 'AV_JOBS' : (profile.registrationScope || 'ALL_JOBS');
+  profile.detailedExperience = detailedExperience || profile.detailedExperience;
+  profile.esicNumber = esicNumber || profile.esicNumber;
+  profile.pfAccountNumber = pfAccountNumber || profile.pfAccountNumber;
+  profile.governmentDocumentType = governmentDocumentType || profile.governmentDocumentType;
+  profile.governmentDocumentNumber = governmentDocumentNumber || profile.governmentDocumentNumber;
+  profile.governmentDocumentUrl = governmentDocumentUrl || profile.governmentDocumentUrl;
+  if (desiredScope === 'AV_JOBS') profile.avRegistrationCompletedAt = now;
+  profile.updatedAt = now;
+
+  const activeRegistration = db.registrations.find(r => r.candidateId === profile!.id && r.status === 'ACTIVE' && r.paymentStatus === 'SUCCESS');
+  let paymentOrder: PaymentOrder | undefined;
+  let createdApplication: ManpowerApplication | undefined;
+
+  if (!activeRegistration) {
+    paymentOrder = {
+      id: `order_${crypto.randomUUID().slice(0, 8)}`,
+      userId: user.id,
+      purpose: 'CANDIDATE_REGISTRATION',
+      amount: 10,
+      currency: 'INR',
+      status: paymentMode === 'CASH' ? 'SUCCESS' : 'PENDING',
+      jobId: targetJob?.id,
+      jobTitle: targetJob?.title,
+      transactionId: paymentMode === 'CASH' ? `CASH_${Date.now()}` : undefined,
+      verifiedAt: paymentMode === 'CASH' ? now : undefined,
+      createdAt: now,
+    };
+    db.paymentOrders.push(paymentOrder);
+
+    if (paymentMode === 'CASH') {
+      profile.registrationStatus = 'ACTIVE';
+      db.registrations.push({
+        id: `reg_${crypto.randomUUID().slice(0, 8)}`,
+        candidateId: profile.id,
+        userId: user.id,
+        amount: 10,
+        paymentOrderId: paymentOrder.id,
+        paymentTransactionId: paymentOrder.transactionId || `CASH_${Date.now()}`,
+        paymentStatus: 'SUCCESS',
+        registrationDate: now,
+        status: 'ACTIVE',
+      });
+    }
+  }
+
+  if (targetJob && (activeRegistration || paymentMode === 'CASH')) {
+    createdApplication = {
+      id: `app_${crypto.randomUUID().slice(0, 8)}`,
+      candidateId: profile.id,
+      userId: user.id,
+      jobId: targetJob.id,
+      jobCategory: targetJob.jobCategory,
+      appliedDate: now,
+      resumeUrl: profile.resumeUrl,
+      applicationStatus: 'APPLIED',
+      staffReviewStatus: targetJob.jobCategory === 'AV_JOB' ? 'PENDING' : undefined,
+      paymentMode: paymentMode === 'CASH' ? 'CASH' : 'ONLINE',
+      paymentMarkedBy: paymentMode === 'CASH' ? requester?.id : undefined,
+      notes: paymentMode === 'CASH' ? 'Walk-in registration submitted by staff; cash payment marked.' : '',
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.applications.unshift(createdApplication);
+  }
+
+  db.save();
+
+  return res.json({
+    message: paymentOrder && paymentMode !== 'CASH'
+      ? 'Candidate profile saved. Complete one-time Rs.10 portal registration payment.'
+      : paymentMode === 'CASH'
+      ? 'Walk-in candidate registered and cash payment marked.'
+      : targetJob
+      ? `Application submitted for "${targetJob.title}".`
+      : 'Candidate profile updated.',
+    profile,
+    application: createdApplication,
+    paymentOrder: paymentOrder && paymentMode !== 'CASH' ? {
+      orderId: paymentOrder.id,
+      amount: paymentOrder.amount,
+      currency: 'INR',
+      candidateName: profile.fullName,
+      mobile: profile.mobile,
+      jobId: targetJob?.id,
+      jobTitle: targetJob?.title,
+    } : null,
+  });
+});
+
+apiRouter.post('/candidate/register-legacy', (req: AuthenticatedRequest, res: Response) => {
   const user = resolveUser(req) || db.users.find(u => u.role === 'candidate');
   if (!user) {
     return res.status(401).json({ error: 'User must be authenticated to register.' });
@@ -853,6 +1080,13 @@ apiRouter.post('/applications/apply', (req: AuthenticatedRequest, res: Response)
     return res.status(400).json({ error: `Cannot apply: This job is currently ${job.status.toLowerCase()}.` });
   }
 
+  if (job.jobCategory === 'AV_JOB' && profile.registrationScope !== 'AV_JOBS') {
+    return res.status(403).json({
+      error: 'Complete the additional AV Jobs registration fields to apply for AV vacancies.',
+      needsAvUpgrade: true,
+    });
+  }
+
   // Prevent duplicate application for same candidate & same job
   const existingApp = db.applications.find(
     a => a.candidateId === profile.id && a.jobId === jobId && a.applicationStatus !== 'WITHDRAWN'
@@ -875,6 +1109,7 @@ apiRouter.post('/applications/apply', (req: AuthenticatedRequest, res: Response)
     appliedDate: now,
     resumeUrl: profile.resumeUrl,
     applicationStatus: 'APPLIED',
+    staffReviewStatus: job.jobCategory === 'AV_JOB' ? 'PENDING' : undefined,
     notes: notes || '',
     createdAt: now,
     updatedAt: now,
@@ -1543,6 +1778,37 @@ apiRouter.get('/employee/me', requireEmployee, (req: AuthenticatedRequest, res: 
     todayAttendance: todayAttendance || emptyAttendance(employee.employeeId, todayStr),
     leaveBalance,
   });
+});
+
+apiRouter.get('/staff/av-applications', requireStaff, (req: AuthenticatedRequest, res: Response) => {
+  const applications = db.applications
+    .filter(app => app.jobCategory === 'AV_JOB')
+    .map(app => ({
+      ...app,
+      candidate: db.candidateProfiles.find(p => p.id === app.candidateId),
+      job: db.jobs.find(j => j.id === app.jobId),
+    }))
+    .sort((a, b) => b.appliedDate.localeCompare(a.appliedDate));
+
+  res.json({ applications });
+});
+
+apiRouter.post('/staff/av-applications/:id/review', requireStaff, (req: AuthenticatedRequest, res: Response) => {
+  const application = db.applications.find(app => app.id === req.params.id && app.jobCategory === 'AV_JOB');
+  if (!application) {
+    return res.status(404).json({ error: 'AV application not found.' });
+  }
+
+  const { action, remarks } = req.body;
+  const now = new Date().toISOString();
+  application.staffReviewStatus = action === 'REJECT' ? 'STAFF_REJECTED' : 'STAFF_APPROVED';
+  application.staffReviewedBy = req.user?.id;
+  application.staffReviewedAt = now;
+  application.adminRemarks = remarks || application.adminRemarks;
+  application.updatedAt = now;
+  db.save();
+
+  res.json({ message: `Application marked as ${application.staffReviewStatus}.`, application });
 });
 
 // Attendance state machine: CLOCK_IN -> BREAK -> RESUME -> LUNCH -> RESUME -> CLOCK_OUT

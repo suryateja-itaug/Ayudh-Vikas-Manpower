@@ -13,6 +13,9 @@ import {
   Layers,
   Sparkles,
   Award,
+  ClipboardCheck,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationDrawer } from './NotificationModal';
@@ -53,7 +56,9 @@ export const Header: React.FC = () => {
 
   // Keep portalMode synchronized with the current URL route
   useEffect(() => {
-    if (location.pathname.startsWith('/manpower/admin')) {
+    if (location.pathname.startsWith('/manpower/staff')) {
+      if (portalMode !== 'staff') setPortalMode('staff');
+    } else if (location.pathname.startsWith('/manpower/admin')) {
       if (portalMode !== 'admin') setPortalMode('admin');
     } else if (location.pathname.startsWith('/manpower/employee')) {
       if (portalMode !== 'employee') setPortalMode('employee');
@@ -61,13 +66,14 @@ export const Header: React.FC = () => {
       location.pathname === '/manpower' ||
       location.pathname.startsWith('/manpower/jobs') ||
       location.pathname.startsWith('/manpower/register') ||
+      location.pathname.startsWith('/manpower/sign-in') ||
       location.pathname.startsWith('/manpower/applications')
     ) {
       if (portalMode !== 'candidate') setPortalMode('candidate');
     }
   }, [location.pathname]);
 
-  const handlePortalSwitch = (mode: 'candidate' | 'employee' | 'admin') => {
+  const handlePortalSwitch = (mode: 'candidate' | 'employee' | 'admin' | 'staff') => {
     setPortalMode(mode);
     setMobileMenuOpen(false);
     if (mode === 'admin') {
@@ -80,6 +86,11 @@ export const Header: React.FC = () => {
         switchUser('usr_emp_01');
       }
       navigate('/manpower/employee/dashboard');
+    } else if (mode === 'staff') {
+      if (user?.role !== 'staff') {
+        switchUser('usr_staff_01');
+      }
+      navigate('/manpower/staff');
     } else {
       if (user?.role !== 'candidate') {
         switchUser('usr_cand_01');
@@ -210,6 +221,18 @@ export const Header: React.FC = () => {
               </button>
 
               <button
+                onClick={() => handlePortalSwitch('staff')}
+                className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  portalMode === 'staff'
+                    ? 'bg-white text-emerald-800 shadow-xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>Staff Portal</span>
+              </button>
+
+              <button
                 onClick={() => handlePortalSwitch('admin')}
                 className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   portalMode === 'admin'
@@ -242,11 +265,18 @@ export const Header: React.FC = () => {
               </button>
 
               {/* Status Badge */}
-              {portalMode === 'candidate' && isRegisteredCandidate && (
-                <div className="hidden sm:flex items-center space-x-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-medium">
-                  <FileCheck2 className="w-3.5 h-3.5" />
-                  <span>₹10 Registration Active</span>
-                </div>
+              {portalMode === 'candidate' && (
+                isRegisteredCandidate ? (
+                  <div className="hidden sm:flex items-center space-x-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-medium">
+                    <FileCheck2 className="w-3.5 h-3.5" />
+                    <span>Rs.10 Registration Active</span>
+                  </div>
+                ) : (
+                  <Link to="/manpower/sign-in" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold">
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Sign In</span>
+                  </Link>
+                )
               )}
 
               {portalMode === 'employee' && employeeRecord && (
@@ -309,6 +339,16 @@ export const Header: React.FC = () => {
                   }`}
                 >
                   My Applications
+                </Link>
+                <Link
+                  to="/manpower/sign-in"
+                  className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive('/manpower/sign-in')
+                      ? 'bg-slate-900 text-white font-semibold'
+                      : 'text-slate-600 hover:text-emerald-900 hover:bg-emerald-50'
+                  }`}
+                >
+                  Sign In
                 </Link>
               </>
             )}
@@ -505,6 +545,32 @@ export const Header: React.FC = () => {
                 </Link>
               </>
             )}
+
+            {portalMode === 'staff' && (
+              <>
+                <Link
+                  to="/manpower/staff"
+                  className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    location.pathname === '/manpower/staff'
+                      ? 'bg-emerald-600 text-white font-semibold shadow-xs'
+                      : 'text-slate-600 hover:text-emerald-900 hover:bg-emerald-50'
+                  }`}
+                >
+                  AV Application Review
+                </Link>
+                <Link
+                  to="/manpower/staff/walk-in"
+                  className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center space-x-1 ${
+                    isActive('/manpower/staff/walk-in')
+                      ? 'bg-emerald-100 text-emerald-900 font-semibold'
+                      : 'text-slate-600 hover:text-emerald-900 hover:bg-emerald-50'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Walk-in Registration</span>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
 
@@ -525,6 +591,12 @@ export const Header: React.FC = () => {
                 Employee
               </button>
               <button
+                onClick={() => handlePortalSwitch('staff')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg ${portalMode === 'staff' ? 'bg-white shadow-xs text-emerald-800' : 'text-slate-600'}`}
+              >
+                Staff
+              </button>
+              <button
                 onClick={() => handlePortalSwitch('admin')}
                 className={`flex-1 py-1.5 text-xs font-semibold rounded-lg ${portalMode === 'admin' ? 'bg-white shadow-xs text-teal-800' : 'text-slate-600'}`}
               >
@@ -538,6 +610,7 @@ export const Header: React.FC = () => {
                   <Link to="/manpower/jobs/av" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">AV Jobs</Link>
                   <Link to="/manpower/jobs/all" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">All Jobs (Partner)</Link>
                   <Link to="/manpower/applications" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">My Applications</Link>
+                  <Link to="/manpower/sign-in" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">Sign In</Link>
                 </>
               )}
               {portalMode === 'employee' && (
@@ -559,6 +632,12 @@ export const Header: React.FC = () => {
                   <Link to="/manpower/admin/approvals" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">3-Level Approvals</Link>
                 </>
               )}
+              {portalMode === 'staff' && (
+                <>
+                  <Link to="/manpower/staff" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">AV Application Review</Link>
+                  <Link to="/manpower/staff/walk-in" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 font-medium">Walk-in Registration</Link>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -569,3 +648,4 @@ export const Header: React.FC = () => {
     </>
   );
 };
+

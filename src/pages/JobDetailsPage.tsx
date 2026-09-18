@@ -58,7 +58,7 @@ export const JobDetailsPage: React.FC = () => {
   const handleApply = async () => {
     if (!job) return;
     if (!isRegisteredCandidate) {
-      setApplyError('Active ₹10 candidate registration required before applying.');
+      setApplyError('Active Rs.10 candidate registration required before applying.');
       return;
     }
 
@@ -78,8 +78,12 @@ export const JobDetailsPage: React.FC = () => {
     }
   };
 
-  const startPaidApplication = () => {
+  const startPaidApplication = async () => {
     if (!job) return;
+    if (isRegisteredCandidate) {
+      await handleApply();
+      return;
+    }
     navigate(`/manpower/register?jobId=${encodeURIComponent(job.id)}`);
   };
 
@@ -159,7 +163,7 @@ export const JobDetailsPage: React.FC = () => {
                 onClick={startPaidApplication}
                 className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-500/20 flex items-center space-x-2 transition-all hover:scale-[1.02]"
               >
-                <span>Apply & Pay Rs.10</span>
+                <span>Apply / Register</span>
                 <Send className="w-3.5 h-3.5" />
               </button>
             ) : (
@@ -209,14 +213,14 @@ export const JobDetailsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="font-bold flex items-center space-x-2">
               <Shield className="w-4 h-4 text-emerald-700" />
-              <span>Application requires this full form and a Rs.10 payment for this specific job.</span>
+              <span>First-time candidates complete one-time Rs.10 portal registration before applying.</span>
             </div>
             <span className="font-semibold text-emerald-800">
               {job.totalApplicantsCount || 0} applicant{(job.totalApplicantsCount || 0) === 1 ? '' : 's'} recorded
             </span>
           </div>
           <p className="text-emerald-800 leading-relaxed">
-            Review the complete job information below before applying. The candidate form will be shown again for this role so the latest profile details, documents, and payment receipt are linked to this application.
+            Review the complete job information below before applying. Registered candidates can apply without paying Rs.10 again.
           </p>
         </div>
 

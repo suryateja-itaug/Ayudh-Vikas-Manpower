@@ -53,10 +53,26 @@ const users: User[] = [
     createdAt: '2026-01-01T00:00:00.000Z',
   },
   {
+    id: 'usr_staff_01',
+    name: 'Kavya Rao',
+    email: 'staff@ayudhvikas.org',
+    mobile: '9849012348',
+    role: 'staff',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
     id: 'usr_cand_01',
     name: 'Rahul Sharma',
     email: 'rahul.sharma@example.com',
     mobile: '9876543210',
+    role: 'candidate',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'usr_cand_02',
+    name: 'Anita Reddy',
+    email: 'anita.reddy@example.com',
+    mobile: '9848123456',
     role: 'candidate',
     createdAt: '2026-01-01T00:00:00.000Z',
   },
@@ -79,6 +95,15 @@ const candidateProfiles: CandidateProfile[] = [
     address: 'Ameerpet, Hyderabad, Telangana',
     resumeUrl: '/documents/resumes/rahul-sharma.pdf',
     registrationStatus: 'ACTIVE',
+    registrationScope: 'AV_JOBS',
+    passwordHash: 'Password1',
+    detailedExperience: '2 years in office support and data entry.',
+    esicNumber: 'ESIC987654321',
+    pfAccountNumber: 'PFHYD123456',
+    governmentDocumentType: 'AADHAAR',
+    governmentDocumentNumber: 'XXXX-XXXX-4321',
+    governmentDocumentUrl: '/documents/identity/rahul-sharma-aadhaar.pdf',
+    avRegistrationCompletedAt: '2026-02-01T09:05:00.000Z',
     createdAt: '2026-02-01T09:00:00.000Z',
     updatedAt: now,
   },
@@ -98,6 +123,15 @@ const candidateProfiles: CandidateProfile[] = [
     address: 'Tarnaka, Secunderabad, Telangana',
     resumeUrl: '/documents/resumes/anita-reddy.pdf',
     registrationStatus: 'ACTIVE',
+    registrationScope: 'AV_JOBS',
+    passwordHash: 'Password1',
+    detailedExperience: '3 years in patient assistance and caregiver support.',
+    esicNumber: 'ESIC984812345',
+    pfAccountNumber: 'PFSEC984812',
+    governmentDocumentType: 'PAN',
+    governmentDocumentNumber: 'ABCDE1234F',
+    governmentDocumentUrl: '/documents/identity/anita-reddy-pan.pdf',
+    avRegistrationCompletedAt: '2026-02-05T09:05:00.000Z',
     createdAt: '2026-02-05T09:00:00.000Z',
     updatedAt: now,
   },
@@ -540,7 +574,20 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
   }
 
   if (pathname === '/auth/login' && method === 'POST') {
-    return { token: user.id, user, candidateProfile, employeeRecord: employees.find(e => e.userId === user.id) } as T;
+    const body = JSON.parse(String(options.body || '{}'));
+    const loginId = String(body.mobile || body.username || body.email || '').trim().toLowerCase();
+    const matchedUser = loginId
+      ? users.find(u => u.email.toLowerCase() === loginId || u.mobile === loginId)
+      : users.find(u => u.role === body.role) || user;
+    if (!matchedUser) return undefined;
+    const profile = candidateProfiles.find(p => p.userId === matchedUser.id);
+    if (body.password && profile?.passwordHash && profile.passwordHash !== body.password) return undefined;
+    return {
+      token: matchedUser.id,
+      user: matchedUser,
+      candidateProfile: profile,
+      employeeRecord: employees.find(e => e.userId === matchedUser.id),
+    } as T;
   }
 
   if (pathname === '/jobs') {
@@ -563,22 +610,54 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
 
   if (pathname === '/candidate/register' && method === 'POST') {
     const body = JSON.parse(String(options.body || '{}'));
+    const existingUser = user.role === 'candidate'
+      ? user
+      : users.find(u => u.mobile === body.mobile || u.email.toLowerCase() === String(body.email || '').toLowerCase());
+    const candidateUser = existingUser || {
+      id: nextId('usr_cand'),
+      name: body.fullName,
+      email: body.email || `${body.mobile}@candidate.local`,
+      mobile: body.mobile,
+      role: 'candidate' as const,
+      createdAt: now,
+    };
+    if (!existingUser) users.push(candidateUser);
+    const existingProfile = candidateProfiles.find(p => p.userId === candidateUser.id);
     const profile: CandidateProfile = {
-      ...candidateProfile,
+      ...(existingProfile || candidateProfile),
       ...body,
-      id: candidateProfile?.id || nextId('prof'),
-      userId: user.id,
-      fullName: body.fullName || user.name,
-      mobile: body.mobile || user.mobile,
-      email: body.email || user.email,
+      id: existingProfile?.id || nextId('prof'),
+      userId: candidateUser.id,
+      fullName: body.fullName || candidateUser.name,
+      mobile: body.mobile || candidateUser.mobile,
+      email: body.email || candidateUser.email,
       skills: Array.isArray(body.skills) ? body.skills : [],
-      registrationStatus: 'PENDING_PAYMENT',
+      registrationStatus: body.paymentMode === 'CASH' ? 'ACTIVE' : 'PENDING_PAYMENT',
+      registrationScope: body.registrationScope || 'ALL_JOBS',
       updatedAt: now,
     };
+    if (!existingProfile) candidateProfiles.push(profile);
+    const activeRegistration = registrations.find(r => r.candidateId === profile.id && r.status === 'ACTIVE');
+    if (activeRegistration || body.paymentMode === 'CASH') {
+      if (!activeRegistration) {
+        registrations.push({
+          id: nextId('reg'),
+          candidateId: profile.id,
+          userId: candidateUser.id,
+          amount: 10,
+          paymentOrderId: nextId('order_cash'),
+          paymentTransactionId: nextId('cash'),
+          paymentStatus: 'SUCCESS',
+          registrationDate: now,
+          status: 'ACTIVE',
+        });
+      }
+      return { message: 'Candidate registered in static demo mode.', profile, paymentOrder: null } as T;
+    }
     const order: PaymentOrder = {
       id: nextId('order'),
-      userId: user.id,
-      purpose: body.jobId ? 'JOB_APPLICATION' : 'CANDIDATE_REGISTRATION',
+      userId: candidateUser.id,
+      purpose: 'CANDIDATE_REGISTRATION',
       amount: 10,
       currency: 'INR',
       status: 'PENDING',
@@ -641,6 +720,22 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
 
   if (pathname === '/candidate/applications') {
     return { applications: applications.filter(a => a.userId === user.id || user.role === 'admin') } as T;
+  }
+
+  if (pathname === '/staff/av-applications') {
+    return { applications: applications.filter(a => a.jobCategory === 'AV_JOB') } as T;
+  }
+
+  if (pathname.startsWith('/staff/av-applications/') && pathname.endsWith('/review') && method === 'POST') {
+    const id = pathname.split('/')[3];
+    const body = JSON.parse(String(options.body || '{}'));
+    const application = applications.find(a => a.id === id);
+    if (!application) return undefined;
+    application.staffReviewStatus = body.action === 'APPROVE' ? 'STAFF_APPROVED' : 'STAFF_REJECTED';
+    application.staffReviewedBy = user.id;
+    application.staffReviewedAt = now;
+    application.updatedAt = now;
+    return { message: 'Staff review saved in static demo mode.', application } as T;
   }
 
   if (pathname.startsWith('/admin/applications/')) {

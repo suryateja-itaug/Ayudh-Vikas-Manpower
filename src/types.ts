@@ -1,6 +1,7 @@
 export type UserRole =
   | 'candidate'
   | 'employee'
+  | 'staff'
   | 'hr_admin'
   | 'ops_admin'
   | 'director_admin'
@@ -33,6 +34,15 @@ export interface CandidateProfile {
   resumeUrl?: string;
   documentUrls?: string[];
   registrationStatus: 'PENDING_PAYMENT' | 'ACTIVE';
+  registrationScope?: 'ALL_JOBS' | 'AV_JOBS';
+  passwordHash?: string;
+  detailedExperience?: string;
+  esicNumber?: string;
+  pfAccountNumber?: string;
+  governmentDocumentType?: 'AADHAAR' | 'PAN' | 'DRIVING_LICENSE' | 'VOTER_ID' | 'PASSPORT';
+  governmentDocumentNumber?: string;
+  governmentDocumentUrl?: string;
+  avRegistrationCompletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -120,6 +130,11 @@ export interface ManpowerApplication {
   notes?: string;
   adminRemarks?: string;
   rejectionReason?: string;
+  staffReviewStatus?: 'PENDING' | 'STAFF_APPROVED' | 'STAFF_REJECTED';
+  staffReviewedBy?: string;
+  staffReviewedAt?: string;
+  paymentMode?: 'ONLINE' | 'CASH';
+  paymentMarkedBy?: string;
   candidate?: CandidateProfile;
   job?: ManpowerJob;
   createdAt: string;

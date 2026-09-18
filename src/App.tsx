@@ -9,7 +9,9 @@ import { HomePage } from './pages/HomePage';
 import { JobsListPage } from './pages/JobsListPage';
 import { JobDetailsPage } from './pages/JobDetailsPage';
 import { CandidateRegisterPage } from './pages/CandidateRegisterPage';
+import { CandidateSignInPage } from './pages/CandidateSignInPage';
 import { CandidateApplicationsPage } from './pages/CandidateApplicationsPage';
+import { StaffPortalPage } from './pages/staff/StaffPortalPage';
 
 // Employee Portal Pages
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
@@ -45,13 +47,18 @@ export default function App() {
               <Route path="/" element={<Navigate to="/manpower" replace />} />
               <Route path="/manpower" element={<HomePage />} />
               <Route path="/manpower/jobs" element={<JobsListPage />} />
-              <Route path="/manpower/jobs/av" element={<JobsListPage categoryOverride="AV_JOB" />} />
+              <Route path="/manpower/jobs/av" element={<CandidateRegisterPage registrationScopeOverride="AV_JOBS" />} />
               <Route path="/manpower/jobs/all" element={<JobsListPage categoryOverride="ALL_JOB" />} />
               <Route path="/manpower/jobs/:id" element={<JobDetailsPage />} />
               <Route path="/manpower/register" element={<CandidateRegisterPage />} />
               <Route path="/manpower/apply" element={<CandidateRegisterPage />} />
+              <Route path="/manpower/sign-in" element={<CandidateSignInPage />} />
               <Route path="/candidate/register" element={<CandidateRegisterPage />} />
               <Route path="/manpower/applications" element={<CandidateApplicationsPage />} />
+
+              {/* Staff Routes */}
+              <Route path="/manpower/staff" element={<StaffPortalPage />} />
+              <Route path="/manpower/staff/walk-in" element={<CandidateRegisterPage registrationScopeOverride="AV_JOBS" staffCashMode />} />
 
               {/* Employee Routes */}
               <Route path="/manpower/employee" element={<EmployeeDashboardPage />} />

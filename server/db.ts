@@ -245,6 +245,15 @@ class Database {
       createdAt: '2025-01-01T00:00:00.000Z',
     };
 
+    const staffUser: User = {
+      id: 'usr_staff_01',
+      name: 'Kavya Rao (Front Desk Staff)',
+      email: 'staff@ayudhvikas.org',
+      mobile: '9849012348',
+      role: 'staff',
+      createdAt: '2025-01-01T00:00:00.000Z',
+    };
+
     const candidateUser: User = {
       id: 'usr_cand_01',
       name: 'Rahul Sharma',
@@ -271,6 +280,15 @@ class Database {
       address: 'Plot 42, Sri Krishna Nagar, Kukatpally, Hyderabad - 500072',
       resumeUrl: '/documents/resumes/rahul_sharma_resume.pdf',
       registrationStatus: 'ACTIVE',
+      registrationScope: 'AV_JOBS',
+      passwordHash: 'demo',
+      detailedExperience: 'Two years handling visitor registers, invoice files, office documentation, and front-desk coordination.',
+      esicNumber: 'ESIC-TS-192837',
+      pfAccountNumber: 'PF/HYD/AVF/0042',
+      governmentDocumentType: 'AADHAAR',
+      governmentDocumentNumber: 'XXXX-XXXX-1234',
+      governmentDocumentUrl: '/documents/identity/rahul_sharma_aadhaar.pdf',
+      avRegistrationCompletedAt: '2026-01-10T10:15:00.000Z',
       createdAt: '2026-01-10T10:05:00.000Z',
       updatedAt: '2026-01-10T10:15:00.000Z',
     };
@@ -326,6 +344,15 @@ class Database {
       address: 'H.No 12-4-88, Tarnaka Main Road, Secunderabad - 500017',
       resumeUrl: '/documents/resumes/anita_reddy_resume.pdf',
       registrationStatus: 'ACTIVE',
+      registrationScope: 'AV_JOBS',
+      passwordHash: 'demo',
+      detailedExperience: 'Three years of clinic assistance, patient movement coordination, vitals monitoring, and camp documentation.',
+      esicNumber: 'ESIC-TS-847263',
+      pfAccountNumber: 'PF/HYD/AVF/0078',
+      governmentDocumentType: 'AADHAAR',
+      governmentDocumentNumber: 'XXXX-XXXX-5678',
+      governmentDocumentUrl: '/documents/identity/anita_reddy_aadhaar.pdf',
+      avRegistrationCompletedAt: '2026-02-01T09:15:00.000Z',
       createdAt: '2026-02-01T09:10:00.000Z',
       updatedAt: '2026-02-01T09:15:00.000Z',
     };
@@ -1557,7 +1584,7 @@ class Database {
     ];
 
     return {
-      users: [adminUser, hrUser, opsUser, candidateUser, candidate2User, employeeUser, ...historicalUsers],
+      users: [adminUser, hrUser, opsUser, staffUser, candidateUser, candidate2User, employeeUser, ...historicalUsers],
       candidateProfiles: [candidateProfile, candidate2Profile, ...historicalCandidateProfiles],
       registrations: [registration, registration2],
       paymentOrders: [paymentOrder],
