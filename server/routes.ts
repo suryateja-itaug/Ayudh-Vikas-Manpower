@@ -133,6 +133,9 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
   if (!user) {
     return res.status(400).json({ error: 'User not found. Please select a valid profile.' });
   }
+  if (user.isActive === false) {
+    return res.status(403).json({ error: 'This account is disabled. Please contact admin.' });
+  }
 
   const candidateProfile = db.candidateProfiles.find(p => p.userId === user?.id);
   const expectedPassword = (user as any).passwordHash || candidateProfile?.passwordHash || demoPasswords[user.id];
@@ -1475,6 +1478,66 @@ apiRouter.put('/admin/applications/:id/status', requireAdmin, (req: Authenticate
   res.json({ message: `Application status updated to ${status}.`, application: app });
 });
 
+apiRouter.post('/admin/applications/bulk-status', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const { ids = [], status, remarks } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0 || !status) {
+    return res.status(400).json({ error: 'Application ids and status are required.' });
+  }
+  const now = new Date().toISOString();
+  const updated: ManpowerApplication[] = [];
+  ids.forEach((id: string) => {
+    const app = db.applications.find(a => a.id === id);
+    if (!app) return;
+    app.applicationStatus = status;
+    if (remarks) app.adminRemarks = remarks;
+    app.updatedAt = now;
+    updated.push(app);
+    db.notifications.push({
+      id: `notif_${crypto.randomUUID().slice(0, 8)}`,
+      recipientUserId: app.userId,
+      title: `Application Status Updated: ${status}`,
+      message: `Your application status for Job ID ${app.jobId} is now ${status}. ${remarks || ''}`,
+      type: 'STATUS_CHANGED',
+      linkUrl: '/manpower/applications',
+      isRead: false,
+      deliveryChannel: 'IN_APP',
+      createdAt: now,
+    });
+  });
+  db.save();
+  res.json({ message: `${updated.length} application(s) updated to ${status}.`, applications: updated });
+});
+
+apiRouter.put('/admin/candidate/:id/document-verification', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const profile = db.candidateProfiles.find(p => p.id === req.params.id || p.userId === req.params.id);
+  if (!profile) {
+    return res.status(404).json({ error: 'Candidate profile not found.' });
+  }
+  const { status, remarks } = req.body;
+  const allowed = ['PENDING', 'VERIFIED', 'NEEDS_CORRECTION', 'REJECTED'];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ error: `Status must be one of ${allowed.join(', ')}.` });
+  }
+  profile.documentVerificationStatus = status;
+  profile.documentVerificationRemarks = remarks || '';
+  profile.documentVerifiedBy = req.user?.name || req.user?.id;
+  profile.documentVerifiedAt = new Date().toISOString();
+  profile.updatedAt = profile.documentVerifiedAt;
+  db.notifications.push({
+    id: `notif_${crypto.randomUUID().slice(0, 8)}`,
+    recipientUserId: profile.userId,
+    title: `Document Verification ${status.replace('_', ' ')}`,
+    message: remarks || `Your uploaded document status is now ${status.replace('_', ' ')}.`,
+    type: 'STATUS_CHANGED',
+    linkUrl: '/manpower/applications',
+    isRead: false,
+    deliveryChannel: 'IN_APP',
+    createdAt: profile.documentVerifiedAt,
+  });
+  db.save();
+  res.json({ message: 'Document verification status updated.', profile });
+});
+
 // Candidate Full History Dossier
 apiRouter.get('/admin/candidate/:id/history', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
   const candId = req.params.id;
@@ -2266,6 +2329,51 @@ apiRouter.post('/admin/users', requireAdmin, (req: AuthenticatedRequest, res: Re
   res.status(201).json({ message: `${role.replace('_', ' ')} account created.`, user, employee });
 });
 
+apiRouter.get('/admin/users', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const users = db.users
+    .filter(u => u.role !== 'candidate')
+    .map(u => ({
+      ...u,
+      isActive: u.isActive !== false,
+      employeeRecord: db.employees.find(e => e.userId === u.id),
+    }))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ users });
+});
+
+apiRouter.put('/admin/users/:id', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const target = db.users.find(u => u.id === req.params.id);
+  if (!target) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+  const allowedRoles = ['admin', 'director_admin', 'hr_admin', 'ops_admin', 'staff', 'employee'];
+  const { name, email, mobile, role, password, isActive } = req.body;
+  if (role && !allowedRoles.includes(role)) {
+    return res.status(400).json({ error: 'Candidate role cannot be assigned here.' });
+  }
+  if (email && db.users.some(u => u.id !== target.id && u.email.toLowerCase() === String(email).toLowerCase())) {
+    return res.status(409).json({ error: 'Another user already has this email.' });
+  }
+  if (mobile && db.users.some(u => u.id !== target.id && u.mobile === String(mobile))) {
+    return res.status(409).json({ error: 'Another user already has this mobile.' });
+  }
+  if (name) target.name = name;
+  if (email) target.email = email;
+  if (mobile) target.mobile = mobile;
+  if (role) target.role = role;
+  if (password) target.passwordHash = password;
+  if (typeof isActive === 'boolean') target.isActive = isActive;
+
+  const employee = db.employees.find(e => e.userId === target.id);
+  if (employee) {
+    employee.fullName = target.name;
+    employee.email = target.email;
+    employee.mobile = target.mobile;
+  }
+  db.save();
+  res.json({ message: 'User account updated.', user: target, employee });
+});
+
 // Admin Employee Directory
 apiRouter.get('/admin/employees', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
   const employees = db.employees.map(emp => {
@@ -2319,8 +2427,13 @@ apiRouter.get('/admin/stats', requireAdmin, (req: AuthenticatedRequest, res: Res
 
   const todayStr = new Date().toISOString().split('T')[0];
   const presentToday = db.attendance.filter(a => a.date === todayStr && a.dutyStatus === 'PRESENT').length;
+  const currentlyOnDuty = db.attendance.filter(a => a.date === todayStr && a.currentActivity === 'WORKING').length;
   const pendingLeaves = db.leaves.filter(l => l.status === 'PENDING').length;
   const openComplaints = db.complaints.filter(c => c.status === 'OPEN' || c.status === 'IN_REVIEW').length;
+  const pendingStaffReviews = db.applications.filter(a => a.jobCategory === 'AV_JOB' && (!a.staffReviewStatus || a.staffReviewStatus === 'PENDING')).length;
+  const documentMissingCount = db.candidateProfiles.filter(p => p.registrationScope === 'AV_JOBS' && (!p.governmentDocumentUrl || p.documentVerificationStatus === 'NEEDS_CORRECTION' || p.documentVerificationStatus === 'REJECTED')).length;
+  const todayWalkIns = db.applications.filter(a => a.paymentMode === 'CASH' && a.createdAt?.slice(0, 10) === todayStr).length;
+  const pendingInterviews = db.applications.filter(a => a.applicationStatus === 'INTERVIEW').length;
 
   // Hiring Funnel
   const funnel = [
@@ -2382,8 +2495,13 @@ apiRouter.get('/admin/stats', requireAdmin, (req: AuthenticatedRequest, res: Res
       selected,
       confirmedEmployees,
       presentToday,
+      currentlyOnDuty,
       pendingLeaves,
       openComplaints,
+      pendingStaffReviews,
+      documentMissingCount,
+      todayWalkIns,
+      pendingInterviews,
     },
     funnel,
     categorySplit,

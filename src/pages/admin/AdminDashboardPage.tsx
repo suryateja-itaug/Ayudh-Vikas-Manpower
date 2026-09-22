@@ -15,6 +15,8 @@ import {
   BellRing,
   Award,
   UserPlus,
+  FileCheck2,
+  ClipboardList,
 } from 'lucide-react';
 import {
   BarChart,
@@ -286,6 +288,49 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <ActionWidget
+          to="/manpower/admin/av-applications"
+          icon={<ClipboardList className="w-5 h-5" />}
+          label="Staff Reviews"
+          value={stats?.kpis?.pendingStaffReviews ?? 0}
+          tone="emerald"
+          text="AV profiles pending first review"
+        />
+        <ActionWidget
+          to="/manpower/admin/av-applications"
+          icon={<FileCheck2 className="w-5 h-5" />}
+          label="Document Issues"
+          value={stats?.kpis?.documentMissingCount ?? 0}
+          tone="amber"
+          text="Missing or correction-needed IDs"
+        />
+        <ActionWidget
+          to="/manpower/admin/pipeline"
+          icon={<Briefcase className="w-5 h-5" />}
+          label="Interviews"
+          value={stats?.kpis?.pendingInterviews ?? 0}
+          tone="blue"
+          text="Candidates in interview stage"
+        />
+        <ActionWidget
+          to="/manpower/admin/attendance"
+          icon={<Clock className="w-5 h-5" />}
+          label="On Duty"
+          value={stats?.kpis?.currentlyOnDuty ?? 0}
+          tone="slate"
+          text="Employees currently working"
+        />
+        <ActionWidget
+          to="/manpower/staff/walk-in"
+          icon={<UserPlus className="w-5 h-5" />}
+          label="Walk-ins Today"
+          value={stats?.kpis?.todayWalkIns ?? 0}
+          tone="lime"
+          text="Cash-paid walk-in registrations"
+        />
+      </div>
+
       <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
@@ -412,3 +457,38 @@ const AdminField = ({ label, value, onChange, type = 'text', required = false }:
     />
   </label>
 );
+
+const ActionWidget = ({
+  to,
+  icon,
+  label,
+  value,
+  text,
+  tone,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  text: string;
+  tone: 'emerald' | 'amber' | 'blue' | 'slate' | 'lime';
+}) => {
+  const tones = {
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    amber: 'bg-amber-50 text-amber-700 border-amber-100',
+    blue: 'bg-blue-50 text-blue-700 border-blue-100',
+    slate: 'bg-slate-50 text-slate-700 border-slate-200',
+    lime: 'bg-lime-50 text-lime-700 border-lime-100',
+  };
+
+  return (
+    <Link to={to} className={`rounded-3xl border bg-white p-4 shadow-sm shadow-slate-900/5 transition-transform hover:-translate-y-0.5 ${tones[tone]}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className={`rounded-2xl border p-3 ${tones[tone]}`}>{icon}</div>
+        <div className="text-3xl font-black text-slate-950">{value}</div>
+      </div>
+      <div className="mt-3 text-sm font-black text-slate-950">{label}</div>
+      <div className="mt-1 text-[11px] font-semibold text-slate-500">{text}</div>
+    </Link>
+  );
+};

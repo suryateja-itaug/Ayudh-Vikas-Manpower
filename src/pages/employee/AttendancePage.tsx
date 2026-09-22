@@ -22,6 +22,7 @@ import {
   getSessionElapsedSeconds,
 } from '../../utils/attendanceTime';
 import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
+import { AttendanceCalendar } from '../../components/AttendanceCalendar';
 
 type DutyAction = 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT';
 type ConfirmableDutyAction = Extract<DutyAction, 'CLOCK_IN' | 'CLOCK_OUT'>;
@@ -121,8 +122,9 @@ export const AttendancePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Punch Clock Action Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+        {/* Main Punch Clock Action Card */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div className="space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -264,6 +266,14 @@ export const AttendancePage: React.FC = () => {
             <span>{feedback}</span>
           </div>
         )}
+        </div>
+
+        <AttendanceCalendar
+          records={history}
+          todayAttendance={todayAttendance}
+          now={currentTime}
+          compact
+        />
       </div>
 
       <DutyActionConfirmModal

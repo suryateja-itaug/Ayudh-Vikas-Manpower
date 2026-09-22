@@ -14,6 +14,7 @@ export interface User {
   mobile: string;
   role: UserRole;
   passwordHash?: string;
+  isActive?: boolean;
   avatarUrl?: string;
   createdAt: string;
 }
@@ -43,6 +44,10 @@ export interface CandidateProfile {
   governmentDocumentType?: 'AADHAAR' | 'PAN' | 'DRIVING_LICENSE' | 'VOTER_ID' | 'PASSPORT';
   governmentDocumentNumber?: string;
   governmentDocumentUrl?: string;
+  documentVerificationStatus?: 'PENDING' | 'VERIFIED' | 'NEEDS_CORRECTION' | 'REJECTED';
+  documentVerificationRemarks?: string;
+  documentVerifiedBy?: string;
+  documentVerifiedAt?: string;
   avRegistrationCompletedAt?: string;
   createdAt: string;
   updatedAt: string;

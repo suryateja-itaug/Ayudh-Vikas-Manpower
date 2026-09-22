@@ -103,6 +103,10 @@ const candidateProfiles: CandidateProfile[] = [
     governmentDocumentType: 'AADHAAR',
     governmentDocumentNumber: 'XXXX-XXXX-4321',
     governmentDocumentUrl: '/documents/identity/rahul-sharma-aadhaar.pdf',
+    documentVerificationStatus: 'VERIFIED',
+    documentVerificationRemarks: 'AADHAAR reference reviewed in demo data.',
+    documentVerifiedBy: 'Dr. Ramesh Chandra',
+    documentVerifiedAt: '2026-02-01T11:05:00.000Z',
     avRegistrationCompletedAt: '2026-02-01T09:05:00.000Z',
     createdAt: '2026-02-01T09:00:00.000Z',
     updatedAt: now,
@@ -131,6 +135,7 @@ const candidateProfiles: CandidateProfile[] = [
     governmentDocumentType: 'PAN',
     governmentDocumentNumber: 'ABCDE1234F',
     governmentDocumentUrl: '/documents/identity/anita-reddy-pan.pdf',
+    documentVerificationStatus: 'PENDING',
     avRegistrationCompletedAt: '2026-02-05T09:05:00.000Z',
     createdAt: '2026-02-05T09:00:00.000Z',
     updatedAt: now,
@@ -600,6 +605,7 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
       ? users.find(u => u.email.toLowerCase() === loginId || u.mobile === loginId)
       : users.find(u => u.role === body.role);
     if (!matchedUser) return undefined;
+    if (matchedUser.isActive === false) return undefined;
     const profile = candidateProfiles.find(p => p.userId === matchedUser.id);
     const expectedPassword = matchedUser.passwordHash || profile?.passwordHash || demoPasswords[matchedUser.id];
     if (!body.password || (expectedPassword && expectedPassword !== body.password)) return undefined;
@@ -631,7 +637,7 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
 
   if (pathname === '/candidate/register' && method === 'POST') {
     const body = JSON.parse(String(options.body || '{}'));
-    const existingUser = user.role === 'candidate'
+    const existingUser = user?.role === 'candidate'
       ? user
       : users.find(u => u.mobile === body.mobile || u.email.toLowerCase() === String(body.email || '').toLowerCase());
     const candidateUser = existingUser || {
@@ -759,7 +765,31 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
     return { message: 'Staff review saved in static demo mode.', application } as T;
   }
 
-  if (pathname.startsWith('/admin/applications/')) {
+  if (pathname === '/admin/applications/bulk-status' && method === 'POST') {
+    const body = JSON.parse(String(options.body || '{}'));
+    const ids = Array.isArray(body.ids) ? body.ids : [];
+    const updated = applications.filter(app => ids.includes(app.id));
+    updated.forEach(app => {
+      app.applicationStatus = body.status || app.applicationStatus;
+      app.adminRemarks = body.remarks || app.adminRemarks;
+      app.updatedAt = getCurrentIso();
+    });
+    return { message: `${updated.length} application(s) updated in static demo mode.`, applications: updated } as T;
+  }
+
+  if (pathname.startsWith('/admin/applications/') && pathname.endsWith('/status') && method === 'PUT') {
+    const id = pathname.split('/')[3];
+    const body = JSON.parse(String(options.body || '{}'));
+    const application = applications.find(a => a.id === id);
+    if (!application) return undefined;
+    application.applicationStatus = body.status || application.applicationStatus;
+    application.adminRemarks = body.remarks || application.adminRemarks;
+    application.rejectionReason = body.rejectionReason || application.rejectionReason;
+    application.updatedAt = getCurrentIso();
+    return { message: `Application status updated to ${application.applicationStatus}.`, application } as T;
+  }
+
+  if (pathname.startsWith('/admin/applications/') && method === 'GET') {
     const category = pathname.endsWith('/all') ? 'ALL_JOB' : 'AV_JOB';
     const page = Number(query.get('page') || 1);
     const limit = Number(query.get('limit') || 20);
@@ -801,8 +831,13 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
         selected: applications.filter(a => a.applicationStatus === 'SELECTED').length,
         confirmedEmployees: employees.length,
         presentToday: 2,
+        currentlyOnDuty: attendance.filter(a => a.date === today && a.currentActivity === 'WORKING').length,
         pendingLeaves: leaves.filter(l => l.status === 'PENDING').length,
         openComplaints: complaints.filter(c => c.status !== 'RESOLVED').length,
+        pendingStaffReviews: applications.filter(a => a.jobCategory === 'AV_JOB' && (!a.staffReviewStatus || a.staffReviewStatus === 'PENDING')).length,
+        documentMissingCount: candidateProfiles.filter(p => p.registrationScope === 'AV_JOBS' && (!p.governmentDocumentUrl || p.documentVerificationStatus === 'NEEDS_CORRECTION' || p.documentVerificationStatus === 'REJECTED')).length,
+        todayWalkIns: applications.filter(a => a.paymentMode === 'CASH' && a.createdAt?.slice(0, 10) === today).length,
+        pendingInterviews: applications.filter(a => a.applicationStatus === 'INTERVIEW').length,
       },
       funnel: [
         { stage: 'Applied', count: 86 },
@@ -843,6 +878,17 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
   if (pathname === '/employee/appointment-letter') return { appointmentLetter, employee } as T;
   if (pathname === '/admin/employees') return { employees } as T;
 
+  if (pathname === '/admin/users' && method === 'GET') {
+    const portalUsers = users
+      .filter(u => u.role !== 'candidate')
+      .map(u => ({
+        ...u,
+        isActive: u.isActive !== false,
+        employeeRecord: employees.find(e => e.userId === u.id),
+      }));
+    return { users: portalUsers } as T;
+  }
+
   if (pathname === '/admin/users' && method === 'POST') {
     const body = JSON.parse(String(options.body || '{}'));
     const allowedRoles = ['admin', 'director_admin', 'hr_admin', 'ops_admin', 'staff', 'employee'];
@@ -860,6 +906,7 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
       mobile: body.mobile,
       role: body.role,
       passwordHash: body.password,
+      isActive: true,
       createdAt,
     };
     users.unshift(createdUser);
@@ -887,6 +934,26 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
       employees.unshift(createdEmployee);
     }
     return { message: `${String(body.role).replace('_', ' ')} account created in static demo mode.`, user: createdUser, employee: createdEmployee } as T;
+  }
+
+  if (pathname.startsWith('/admin/users/') && method === 'PUT') {
+    const id = pathname.split('/')[3];
+    const body = JSON.parse(String(options.body || '{}'));
+    const target = users.find(u => u.id === id);
+    if (!target || target.role === 'candidate') return undefined;
+    if (body.name) target.name = body.name;
+    if (body.email) target.email = body.email;
+    if (body.mobile) target.mobile = body.mobile;
+    if (body.role) target.role = body.role;
+    if (body.password) target.passwordHash = body.password;
+    if (typeof body.isActive === 'boolean') target.isActive = body.isActive;
+    const emp = employees.find(e => e.userId === target.id);
+    if (emp) {
+      emp.fullName = target.name;
+      emp.email = target.email;
+      emp.mobile = target.mobile;
+    }
+    return { message: 'User updated in static demo mode.', user: target, employee: emp } as T;
   }
 
   if (pathname === '/notifications') {
@@ -989,8 +1056,28 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
     return { success: true, message: 'Static demo action completed.' } as T;
   }
 
-  if (pathname.startsWith('/admin/candidate/')) {
-    return { profile: candidateProfile, user, applications, notifications, employeeRecord: employee, approvals } as T;
+  if (pathname.startsWith('/admin/candidate/') && pathname.endsWith('/document-verification') && method === 'PUT') {
+    const id = pathname.split('/')[3];
+    const body = JSON.parse(String(options.body || '{}'));
+    const profile = candidateProfiles.find(p => p.id === id || p.userId === id);
+    if (!profile) return undefined;
+    profile.documentVerificationStatus = body.status || 'PENDING';
+    profile.documentVerificationRemarks = body.remarks || '';
+    profile.documentVerifiedBy = user?.name || user?.id;
+    profile.documentVerifiedAt = getCurrentIso();
+    profile.updatedAt = profile.documentVerifiedAt;
+    return { message: 'Document verification updated in static demo mode.', profile } as T;
+  }
+
+  if (pathname.startsWith('/admin/candidate/') && pathname.endsWith('/history')) {
+    const id = pathname.split('/')[3];
+    const profile = candidateProfiles.find(p => p.id === id || p.userId === id);
+    if (!profile) return undefined;
+    const profileUser = users.find(u => u.id === profile.userId);
+    const profileApplications = applications.filter(a => a.candidateId === profile.id || a.userId === profile.userId);
+    const profileNotifications = notifications.filter(n => n.recipientUserId === profile.userId);
+    const employeeRecord = employees.find(e => e.candidateId === profile.id || e.userId === profile.userId);
+    return { profile, user: profileUser, applications: profileApplications, notifications: profileNotifications, employeeRecord, approvals } as T;
   }
 
   return undefined;

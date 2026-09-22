@@ -34,6 +34,9 @@ import { AdminAttendancePage } from './pages/admin/AdminAttendancePage';
 import { AdminLeavesPage } from './pages/admin/AdminLeavesPage';
 import { AdminComplaintsPage } from './pages/admin/AdminComplaintsPage';
 import { EmployeesDirectoryPage } from './pages/admin/EmployeesDirectoryPage';
+import { UserManagementPage } from './pages/admin/UserManagementPage';
+import { AVPipelinePage } from './pages/admin/AVPipelinePage';
+import { ReportsPage } from './pages/admin/ReportsPage';
 
 export default function App() {
   return (
@@ -75,6 +78,8 @@ export default function App() {
               {/* Admin Routes */}
               <Route path="/manpower/admin" element={<AdminDashboardPage />} />
               <Route path="/manpower/admin/jobs" element={<JobManagementPage />} />
+              <Route path="/manpower/admin/users" element={<UserManagementPage />} />
+              <Route path="/manpower/admin/pipeline" element={<AVPipelinePage />} />
               <Route path="/manpower/admin/approvals" element={<ApprovalsPage />} />
               <Route path="/manpower/admin/employees" element={<EmployeesDirectoryPage />} />
               <Route path="/manpower/admin/av-applications" element={<AVApplicationsPage />} />
@@ -83,6 +88,7 @@ export default function App() {
               <Route path="/manpower/admin/attendance" element={<AdminAttendancePage />} />
               <Route path="/manpower/admin/leaves" element={<AdminLeavesPage />} />
               <Route path="/manpower/admin/complaints" element={<AdminComplaintsPage />} />
+              <Route path="/manpower/admin/reports" element={<ReportsPage />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/manpower" replace />} />
