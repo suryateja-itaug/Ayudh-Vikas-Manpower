@@ -3,6 +3,7 @@ import { AlertCircle, Briefcase, CheckCircle2, Search } from 'lucide-react';
 import { api } from '../../services/api';
 import { ManpowerApplication } from '../../types';
 import { CandidateDossierModal } from './CandidateDossierModal';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const AVApplicationsPage: React.FC = () => {
   const [applications, setApplications] = useState<ManpowerApplication[]>([]);
@@ -53,6 +54,7 @@ export const AVApplicationsPage: React.FC = () => {
         && (!documentFilter || (documentFilter === 'COMPLETE' ? hasDocument : !hasDocument));
     });
   }, [applications, searchTerm, qualificationFilter, documentFilter]);
+  const applicationsPager = usePaginatedRows(filteredApplications, 10);
 
   return (
     <div className="space-y-8 pb-16">
@@ -138,7 +140,7 @@ export const AVApplicationsPage: React.FC = () => {
                 <tr><td colSpan={4} className="py-12 text-center text-slate-400">Loading applications...</td></tr>
               ) : filteredApplications.length === 0 ? (
                 <tr><td colSpan={4} className="py-12 text-center text-slate-400">No applications matched the filters.</td></tr>
-              ) : filteredApplications.map(app => {
+              ) : applicationsPager.paginatedItems.map(app => {
                 const hasDocument = Boolean(app.candidate?.governmentDocumentType && app.candidate?.governmentDocumentNumber && app.candidate?.governmentDocumentUrl);
                 return (
                   <tr key={app.id} onClick={() => setSelectedCandidateId(app.candidateId)} className="hover:bg-emerald-50/70 transition-colors cursor-pointer">
@@ -174,6 +176,13 @@ export const AVApplicationsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={applicationsPager.page}
+          totalPages={applicationsPager.totalPages}
+          totalItems={filteredApplications.length}
+          pageSize={applicationsPager.pageSize}
+          onPageChange={applicationsPager.setPage}
+        />
       </div>
 
       {selectedCandidateId && (

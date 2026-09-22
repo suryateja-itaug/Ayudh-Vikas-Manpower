@@ -16,6 +16,7 @@ import { api } from '../../services/api';
 import { ManpowerApplication } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { CandidateDossierModal } from './CandidateDossierModal';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const AllApplicationsPage: React.FC = () => {
   const { user } = useAuth();
@@ -60,6 +61,7 @@ export const AllApplicationsPage: React.FC = () => {
       setUpdatingId(null);
     }
   };
+  const applicationsPager = usePaginatedRows(applications, 10);
 
   return (
     <div className="space-y-8 pb-16">
@@ -150,12 +152,12 @@ export const AllApplicationsPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                applications.map(app => (
+                applicationsPager.paginatedItems.map(app => (
                   <tr key={app.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{app.candidate?.fullName || 'Candidate'}</div>
                       <div className="font-mono text-slate-400 text-[10px]">
-                        {app.candidate?.mobile} • {app.candidate?.email}
+                        {app.candidate?.mobile} - {app.candidate?.email}
                       </div>
                     </td>
 
@@ -235,6 +237,13 @@ export const AllApplicationsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={applicationsPager.page}
+          totalPages={applicationsPager.totalPages}
+          totalItems={applications.length}
+          pageSize={applicationsPager.pageSize}
+          onPageChange={applicationsPager.setPage}
+        />
       </div>
 
       {selectedCandidateId && (

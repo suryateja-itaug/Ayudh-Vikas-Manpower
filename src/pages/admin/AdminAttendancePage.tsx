@@ -4,6 +4,7 @@ import { api } from '../../services/api';
 import { EmployeeAttendance } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { formatAttendanceTime, formatDuration, getLiveAttendanceTotals } from '../../utils/attendanceTime';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const AdminAttendancePage: React.FC = () => {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export const AdminAttendancePage: React.FC = () => {
   useEffect(() => {
     fetchAttendance();
   }, [dateFilter]);
+  const attendancePager = usePaginatedRows(attendances, 10);
 
   return (
     <div className="space-y-8 pb-16">
@@ -118,7 +120,7 @@ export const AdminAttendancePage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                attendances.map(item => (
+                attendancePager.paginatedItems.map(item => (
                   <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{item.employeeName || 'Staff Member'}</div>
@@ -166,6 +168,13 @@ export const AdminAttendancePage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={attendancePager.page}
+          totalPages={attendancePager.totalPages}
+          totalItems={attendances.length}
+          pageSize={attendancePager.pageSize}
+          onPageChange={attendancePager.setPage}
+        />
       </div>
     </div>
   );

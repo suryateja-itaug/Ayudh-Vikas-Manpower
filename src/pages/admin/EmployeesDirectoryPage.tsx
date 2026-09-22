@@ -8,6 +8,7 @@ import {
   Award,
   FileText,
   CheckCircle2,
+  AlertCircle,
   Shield,
   Calendar,
   IndianRupee,
@@ -20,10 +21,12 @@ import {
   Sparkles,
   ChevronRight,
   Briefcase,
+  UserPlus,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { ManpowerEmployee, EmployeeIdCard, AppointmentLetter } from '../../types';
+import { ManpowerEmployee, EmployeeIdCard, AppointmentLetter, UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const EmployeesDirectoryPage: React.FC = () => {
   const { user } = useAuth();
@@ -32,6 +35,19 @@ export const EmployeesDirectoryPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createMessage, setCreateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    role: 'employee' as Exclude<UserRole, 'candidate'>,
+    password: 'Password@123',
+    department: 'Operations',
+    designation: 'Operations Associate',
+    basicSalary: 18000,
+  });
 
   // Modal states
   const [activeModal, setActiveModal] = useState<'idCard' | 'appointment' | null>(null);
@@ -79,6 +95,38 @@ export const EmployeesDirectoryPage: React.FC = () => {
       return matchSearch && matchDept;
     });
   }, [employees, searchTerm, selectedDept]);
+  const employeesPager = usePaginatedRows(filteredEmployees, 9);
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateMessage(null);
+    if (createForm.password.length < 8 || !/[A-Z]/.test(createForm.password) || !/[0-9]/.test(createForm.password)) {
+      setCreateMessage({ type: 'error', text: 'Password must be at least 8 characters with one uppercase letter and one number.' });
+      return;
+    }
+    try {
+      setCreateSaving(true);
+      const res = await api.createPortalAccount(createForm);
+      setCreateMessage({
+        type: 'success',
+        text: `${res.user.name} created as ${res.user.role.replace('_', ' ')}. Login username: ${res.user.email}.`,
+      });
+      if (res.employee) {
+        await fetchEmployees();
+      }
+      setCreateForm(prev => ({
+        ...prev,
+        name: '',
+        email: '',
+        mobile: '',
+        password: 'Password@123',
+      }));
+    } catch (err: any) {
+      setCreateMessage({ type: 'error', text: err.message || 'Failed to create portal account.' });
+    } finally {
+      setCreateSaving(false);
+    }
+  };
 
   const handleOpenIdCard = async (emp: ManpowerEmployee) => {
     setSelectedEmployee(emp);
@@ -158,6 +206,18 @@ export const EmployeesDirectoryPage: React.FC = () => {
           </p>
         </div>
 
+        <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center gap-3">
+          <button
+            onClick={() => {
+              setCreateModalOpen(true);
+              setCreateMessage(null);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 px-4 py-3 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:bg-amber-300"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Member
+          </button>
+
         {/* Quick Stats Banner */}
         <div className="flex items-center gap-3 sm:gap-4 bg-slate-900/80 p-3 rounded-2xl border border-slate-700">
           <div className="px-3 py-1 text-center">
@@ -186,6 +246,7 @@ export const EmployeesDirectoryPage: React.FC = () => {
               Verified
             </div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -302,7 +363,7 @@ export const EmployeesDirectoryPage: React.FC = () => {
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEmployees.map(emp => (
+          {employeesPager.paginatedItems.map(emp => (
             <div
               key={emp.id}
               className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-5"
@@ -415,7 +476,7 @@ export const EmployeesDirectoryPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filteredEmployees.map(emp => (
+                {employeesPager.paginatedItems.map(emp => (
                   <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{emp.fullName}</div>
@@ -435,7 +496,7 @@ export const EmployeesDirectoryPage: React.FC = () => {
                       {emp.joiningDate}
                     </td>
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                      ₹{(emp.basicSalary || 25000).toLocaleString('en-IN')}/mo
+                      Rs.{(emp.basicSalary || 25000).toLocaleString('en-IN')}/mo
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -467,6 +528,90 @@ export const EmployeesDirectoryPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && filteredEmployees.length > 0 && (
+        <TablePagination
+          page={employeesPager.page}
+          totalPages={employeesPager.totalPages}
+          totalItems={filteredEmployees.length}
+          pageSize={employeesPager.pageSize}
+          onPageChange={employeesPager.setPage}
+        />
+      )}
+
+      {createModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 p-4 flex items-center justify-center">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white border border-slate-200 shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-start justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">
+                  <UserPlus className="w-4 h-4" />
+                  Add member
+                </div>
+                <h2 className="mt-2 text-xl font-black text-slate-950">Create Portal Account</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Create admin, HR, ops, staff, or employee accounts. Candidate accounts are handled from candidate registration.
+                </p>
+              </div>
+              <button onClick={() => setCreateModalOpen(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAccount} className="p-5 space-y-5 text-xs">
+              {createMessage && (
+                <div className={`rounded-2xl border p-3 flex items-start gap-2 font-semibold ${
+                  createMessage.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}>
+                  {createMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{createMessage.text}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <AccountField label="Full Name" value={createForm.name} onChange={value => setCreateForm(prev => ({ ...prev, name: value }))} required />
+                <AccountField label="Email / Username" type="email" value={createForm.email} onChange={value => setCreateForm(prev => ({ ...prev, email: value }))} required />
+                <AccountField label="Mobile" value={createForm.mobile} onChange={value => setCreateForm(prev => ({ ...prev, mobile: value }))} required />
+                <label className="block space-y-1.5 font-semibold text-slate-700">
+                  <span>Role</span>
+                  <select
+                    value={createForm.role}
+                    onChange={e => setCreateForm(prev => ({ ...prev, role: e.target.value as Exclude<UserRole, 'candidate'> }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900"
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="staff">Staff</option>
+                    <option value="ops_admin">Ops Admin</option>
+                    <option value="hr_admin">HR Admin</option>
+                    <option value="director_admin">Director Admin</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <AccountField label="Password" type="password" value={createForm.password} onChange={value => setCreateForm(prev => ({ ...prev, password: value }))} required />
+                <AccountField label="Department" value={createForm.department} onChange={value => setCreateForm(prev => ({ ...prev, department: value }))} />
+                <AccountField label="Designation" value={createForm.designation} onChange={value => setCreateForm(prev => ({ ...prev, designation: value }))} />
+                <AccountField label="Basic Salary" type="number" value={String(createForm.basicSalary)} onChange={value => setCreateForm(prev => ({ ...prev, basicSalary: Number(value) }))} />
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                Employee accounts are added to this directory. Staff/admin roles are login accounts and appear in demo credentials after creation.
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-2 border-t border-slate-100 pt-4">
+                <button type="button" onClick={() => setCreateModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold">
+                  Close
+                </button>
+                <button disabled={createSaving} className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black inline-flex items-center justify-center gap-2 disabled:opacity-60">
+                  <UserPlus className="w-4 h-4" />
+                  {createSaving ? 'Creating...' : 'Create Member'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -752,3 +897,16 @@ export const EmployeesDirectoryPage: React.FC = () => {
     </div>
   );
 };
+
+const AccountField = ({ label, value, onChange, type = 'text', required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) => (
+  <label className="block space-y-1.5 font-semibold text-slate-700">
+    <span>{label}</span>
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      required={required}
+      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+    />
+  </label>
+);

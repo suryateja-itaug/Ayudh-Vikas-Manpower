@@ -1077,6 +1077,14 @@
       "mobile": "7035682079",
       "role": "candidate",
       "createdAt": "2026-09-18T13:22:43.300Z"
+    },
+    {
+      "id": "usr_staff_01",
+      "name": "Kavya Rao (Front Desk Staff)",
+      "email": "staff@ayudhvikas.org",
+      "mobile": "9849012348",
+      "role": "staff",
+      "createdAt": "2025-01-01T00:00:00.000Z"
     }
   ],
   "candidateProfiles": [
@@ -4894,6 +4902,19 @@
   ],
   "applications": [
     {
+      "id": "app_5ae0f8cc",
+      "candidateId": "prof_cand_02",
+      "userId": "usr_cand_02",
+      "jobId": "job_all_01",
+      "jobCategory": "ALL_JOB",
+      "appliedDate": "2026-09-22T09:40:30.984Z",
+      "resumeUrl": "/documents/resumes/anita_reddy_resume.pdf",
+      "applicationStatus": "APPLIED",
+      "notes": "",
+      "createdAt": "2026-09-22T09:40:30.984Z",
+      "updatedAt": "2026-09-22T09:40:30.984Z"
+    },
+    {
       "id": "app_47af6209",
       "candidateId": "prof_cand_01",
       "userId": "usr_cand_01",
@@ -6159,7 +6180,10 @@
       "adminRemarks": "Good physical fitness; kept on talent pool file.",
       "rejectionReason": "Position vacancy filled in previous cohort.",
       "createdAt": "2026-08-19T14:39:44.574Z",
-      "updatedAt": "2026-08-19T14:39:44.574Z"
+      "updatedAt": "2026-09-22T10:11:46.459Z",
+      "staffReviewStatus": "STAFF_APPROVED",
+      "staffReviewedBy": "usr_staff_01",
+      "staffReviewedAt": "2026-09-22T10:11:46.459Z"
     },
     {
       "id": "app_hist_097",
@@ -7541,6 +7565,17 @@
       "isRead": false,
       "deliveryChannel": "IN_APP",
       "createdAt": "2026-09-18T13:12:42.457Z"
+    },
+    {
+      "id": "notif_d37fe1f2",
+      "recipientUserId": "usr_cand_02",
+      "title": "Application Received",
+      "message": "Your application for \"Junior Software Engineer (Web & Full-Stack)\" at Tata Consultancy Services (Partner Placement) was submitted successfully. Application ID: app_5ae0f8cc.",
+      "type": "APPLICATION_SUBMITTED",
+      "linkUrl": "/manpower/applications",
+      "isRead": false,
+      "deliveryChannel": "IN_APP",
+      "createdAt": "2026-09-22T09:40:30.984Z"
     }
   ]
 }

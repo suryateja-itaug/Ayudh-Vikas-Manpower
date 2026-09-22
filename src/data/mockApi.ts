@@ -601,7 +601,7 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
       : users.find(u => u.role === body.role);
     if (!matchedUser) return undefined;
     const profile = candidateProfiles.find(p => p.userId === matchedUser.id);
-    const expectedPassword = profile?.passwordHash || demoPasswords[matchedUser.id];
+    const expectedPassword = matchedUser.passwordHash || profile?.passwordHash || demoPasswords[matchedUser.id];
     if (!body.password || (expectedPassword && expectedPassword !== body.password)) return undefined;
     return {
       token: matchedUser.id,
@@ -842,6 +842,53 @@ export function mockApiRequest<T>(endpoint: string, options: RequestInit = {}, t
   if (pathname === '/employee/id-card') return { idCard, employee } as T;
   if (pathname === '/employee/appointment-letter') return { appointmentLetter, employee } as T;
   if (pathname === '/admin/employees') return { employees } as T;
+
+  if (pathname === '/admin/users' && method === 'POST') {
+    const body = JSON.parse(String(options.body || '{}'));
+    const allowedRoles = ['admin', 'director_admin', 'hr_admin', 'ops_admin', 'staff', 'employee'];
+    if (!body.name || !body.email || !body.mobile || !body.role || !body.password || !allowedRoles.includes(body.role)) {
+      return undefined;
+    }
+    if (users.some(u => u.email.toLowerCase() === String(body.email).toLowerCase() || u.mobile === String(body.mobile))) {
+      return undefined;
+    }
+    const createdAt = getCurrentIso();
+    const createdUser: User = {
+      id: nextId(`usr_${body.role}`),
+      name: body.name,
+      email: body.email,
+      mobile: body.mobile,
+      role: body.role,
+      passwordHash: body.password,
+      createdAt,
+    };
+    users.unshift(createdUser);
+
+    let createdEmployee: ManpowerEmployee | undefined;
+    if (body.role === 'employee') {
+      createdEmployee = {
+        id: nextId('emp'),
+        employeeId: `AV-EMP-2026-${String(employees.length + 42).padStart(4, '0')}`,
+        userId: createdUser.id,
+        candidateId: '',
+        jobId: '',
+        fullName: body.name,
+        email: body.email,
+        mobile: body.mobile,
+        department: body.department || 'Operations',
+        designation: body.designation || 'Operations Associate',
+        joiningDate: getCurrentDate(),
+        status: 'ACTIVE',
+        basicSalary: Number(body.basicSalary) || 18000,
+        idCardIssued: false,
+        appointmentLetterIssued: false,
+        createdAt,
+      };
+      employees.unshift(createdEmployee);
+    }
+    return { message: `${String(body.role).replace('_', ' ')} account created in static demo mode.`, user: createdUser, employee: createdEmployee } as T;
+  }
+
   if (pathname === '/notifications') {
     const list = notifications.filter(n => n.recipientUserId === user.id || user.role === 'admin');
     return { notifications: list, unreadCount: list.filter(n => !n.isRead).length } as T;

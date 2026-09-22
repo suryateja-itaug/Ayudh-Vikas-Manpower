@@ -574,6 +574,22 @@ class ApiService {
     return this.request<{ employees: ManpowerEmployee[] }>('/admin/employees');
   }
 
+  public async createPortalAccount(data: {
+    name: string;
+    email: string;
+    mobile: string;
+    role: Exclude<User['role'], 'candidate'>;
+    password: string;
+    department?: string;
+    designation?: string;
+    basicSalary?: number;
+  }) {
+    return this.request<{ message: string; user: User; employee?: ManpowerEmployee }>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Stats
   public async getAdminStats() {
     return this.request<any>('/admin/stats');

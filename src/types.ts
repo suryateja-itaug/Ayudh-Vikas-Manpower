@@ -13,6 +13,7 @@ export interface User {
   email: string;
   mobile: string;
   role: UserRole;
+  passwordHash?: string;
   avatarUrl?: string;
   createdAt: string;
 }

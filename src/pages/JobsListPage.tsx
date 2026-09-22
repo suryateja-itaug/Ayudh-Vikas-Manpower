@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   Briefcase,
   Building2,
@@ -11,7 +12,6 @@ import {
   GraduationCap,
   Clock,
   ArrowRight,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   X,
@@ -20,6 +20,21 @@ import { api } from '../services/api';
 import { ManpowerJob } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { getSampleJobs } from '../data/sampleJobs';
+
+const categoryImages = {
+  AV_JOB: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1600&q=80',
+  ALL_JOB: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80',
+};
+
+const jobImages = [
+  'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80',
+];
+
+const getJobImage = (jobId: string) => jobImages[Math.abs(jobId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % jobImages.length];
 
 interface JobsListPageProps {
   categoryOverride?: 'AV_JOB' | 'ALL_JOB';
@@ -48,9 +63,6 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
   const [selectedJobType, setSelectedJobType] = useState<string>('');
   const [selectedClassification, setSelectedClassification] = useState<string>('');
 
-  // Quick Apply Modal state
-  const [applyingJob, setApplyingJob] = useState<ManpowerJob | null>(null);
-  const [applyNotes, setApplyNotes] = useState<string>('');
   const [applySubmitting, setApplySubmitting] = useState<boolean>(false);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(null);
@@ -141,30 +153,6 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
     }
   };
 
-  const handleConfirmApplication = async () => {
-    if (!applyingJob) return;
-
-    if (!isRegisteredCandidate) {
-      setApplyErrorMessage('Active Rs.10 candidate registration required before applying. Please complete registration first.');
-      return;
-    }
-
-    try {
-      setApplySubmitting(true);
-      setApplyErrorMessage(null);
-      const res = await api.applyForJob(applyingJob.id, applyNotes);
-      setApplySuccessMessage(`Application submitted! Application ID: ${res.application.id}`);
-      setTimeout(() => {
-        setApplyingJob(null);
-        navigate('/manpower/applications');
-      }, 1800);
-    } catch (err: any) {
-      setApplyErrorMessage(err.message || 'Failed to submit job application.');
-    } finally {
-      setApplySubmitting(false);
-    }
-  };
-
   return (
     <div className="space-y-8 pb-16">
       {(applySuccessMessage || applyErrorMessage) && (
@@ -182,25 +170,29 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
           </button>
         </div>
       )}
-      {/* Category Header Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-              {targetCategory === 'AV_JOB' ? <Briefcase className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {targetCategory === 'AV_JOB' ? 'AV Jobs (Ayudh Vikas Vacancies)' : 'ALL JOBS (Partner Placements)'}
+      <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 text-white min-h-[320px] flex items-end">
+        <img src={categoryImages[targetCategory]} alt="Career opportunity workspace" className="absolute inset-0 h-full w-full object-cover opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-emerald-950/78 to-slate-950/20" />
+        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="relative w-full p-6 sm:p-8 lg:p-10">
+          <div className="max-w-3xl space-y-4">
+            <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-lime-200">
+              {targetCategory === 'AV_JOB' ? <Briefcase className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+              {targetCategory === 'AV_JOB' ? 'Foundation opportunity path' : 'External organization openings'}
+            </div>
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight">
+              {targetCategory === 'AV_JOB' ? 'Build a profile the Foundation can act on.' : 'Apply to roles that feel within reach.'}
             </h1>
+            <p className="text-sm sm:text-base text-slate-100/88 max-w-2xl leading-7">
+              {targetCategory === 'AV_JOB'
+                ? 'Submit your complete AV profile once. Staff and admin can review your details and contact you when a suitable role is available.'
+                : 'Browse partner openings, apply once per job, and see applied roles clearly so you know your profile is moving forward.'}
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            {targetCategory === 'AV_JOB'
-              ? 'Institutional employment opportunities across Ayudh Vikas Foundation divisions, premises, and community centers.'
-              : 'Direct employment vacancies with corporate partners, technology firms, and logistics enterprises.'}
-          </p>
-        </div>
+        </motion.div>
+      </section>
 
-        {/* Category Toggle Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div className="text-xs font-semibold text-slate-500">{total} open role{total === 1 ? '' : 's'} available</div>
         <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 self-start">
           <Link
             to="/manpower/jobs/av"
@@ -377,8 +369,13 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
           {jobs.map(job => {
             const alreadyApplied = appliedJobIds.has(job.id);
             return (
-            <div
+            <motion.div
               key={job.id}
+              initial={{ opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.35 }}
               role="button"
               tabIndex={0}
               onClick={() => navigate(`/manpower/jobs/${job.id}`)}
@@ -388,8 +385,16 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
                   navigate(`/manpower/jobs/${job.id}`);
                 }
               }}
-              className="bg-white rounded-2xl border border-slate-200 hover:border-amber-300 hover:shadow-md transition-all flex flex-col justify-between p-6 space-y-5 group"
+              className="bg-white rounded-2xl border border-slate-200 hover:border-amber-300 hover:shadow-md transition-all flex flex-col justify-between p-6 space-y-5 group overflow-hidden"
             >
+              <div className="-m-6 mb-0 relative h-40 overflow-hidden">
+                <img src={getJobImage(job.id)} alt={job.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                  <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-black uppercase text-slate-800">{job.jobCategory === 'AV_JOB' ? 'Foundation' : 'Partner'}</span>
+                  <span className="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black uppercase text-white">{job.openings} openings</span>
+                </div>
+              </div>
               <div className="space-y-3">
                 {/* Badge Header */}
                 <div className="flex items-center justify-between gap-2">
@@ -430,7 +435,7 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
                   <div className="flex items-center space-x-1.5 text-slate-600">
                     <IndianRupee className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span className="font-semibold text-slate-900 text-[11px]">
-                      ₹{job.salaryMin.toLocaleString()} - ₹{job.salaryMax.toLocaleString()}
+                      Rs.{job.salaryMin.toLocaleString()} - Rs.{job.salaryMax.toLocaleString()}
                     </span>
                   </div>
 
@@ -507,7 +512,7 @@ export const JobsListPage: React.FC<JobsListPageProps> = ({ categoryOverride }) 
                   </span>
                 )}
               </div>
-            </div>
+            </motion.div>
             );
           })}
         </div>

@@ -3,6 +3,7 @@ import { Calendar, CheckCircle2, XCircle, Clock, AlertCircle, X, Shield, Check }
 import { api } from '../../services/api';
 import { EmployeeLeave } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const AdminLeavesPage: React.FC = () => {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ export const AdminLeavesPage: React.FC = () => {
   useEffect(() => {
     fetchLeaves();
   }, [user]);
+  const leavesPager = usePaginatedRows(leaves, 10);
 
   const openReviewModal = (leave: EmployeeLeave, action: 'APPROVE' | 'REJECT') => {
     setSelectedLeave(leave);
@@ -146,7 +148,7 @@ export const AdminLeavesPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                leaves.map(item => (
+                leavesPager.paginatedItems.map(item => (
                   <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{item.employeeName || 'Employee'}</div>
@@ -226,6 +228,13 @@ export const AdminLeavesPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={leavesPager.page}
+          totalPages={leavesPager.totalPages}
+          totalItems={leaves.length}
+          pageSize={leavesPager.pageSize}
+          onPageChange={leavesPager.setPage}
+        />
       </div>
 
       {/* Review Modal Dialog */}

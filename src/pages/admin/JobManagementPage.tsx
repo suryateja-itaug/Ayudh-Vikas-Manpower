@@ -22,6 +22,7 @@ import confetti from 'canvas-confetti';
 import { api } from '../../services/api';
 import { ManpowerJob } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const JobManagementPage: React.FC = () => {
   const { user } = useAuth();
@@ -130,6 +131,7 @@ export const JobManagementPage: React.FC = () => {
     filterGraduation,
     filterReopenedOnly,
   ]);
+  const jobsPager = usePaginatedRows(jobs, 10);
 
   const handleResetFilters = () => {
     setFilterCategory('');
@@ -575,7 +577,7 @@ export const JobManagementPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                jobs.map(job => (
+                jobsPager.paginatedItems.map(job => (
                   <tr key={job.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{job.title}</div>
@@ -599,7 +601,7 @@ export const JobManagementPage: React.FC = () => {
                     </td>
 
                     <td className="py-3.5 px-4 font-mono font-semibold text-slate-800">
-                      ₹{job.salaryMin.toLocaleString()} - ₹{job.salaryMax.toLocaleString()}
+                      Rs.{job.salaryMin.toLocaleString()} - Rs.{job.salaryMax.toLocaleString()}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -641,7 +643,7 @@ export const JobManagementPage: React.FC = () => {
                       </span>
                       {job.wasReopened && (
                         <span className="block text-[9px] text-amber-600 font-bold mt-0.5">
-                          • REOPENED
+                          REOPENED
                         </span>
                       )}
                     </td>
@@ -678,6 +680,13 @@ export const JobManagementPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={jobsPager.page}
+          totalPages={jobsPager.totalPages}
+          totalItems={jobs.length}
+          pageSize={jobsPager.pageSize}
+          onPageChange={jobsPager.setPage}
+        />
       </div>
 
       {/* RECALL PREVIOUS APPLICANTS MODAL / DRAWER */}

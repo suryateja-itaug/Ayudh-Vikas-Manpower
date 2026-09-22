@@ -135,7 +135,7 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
   }
 
   const candidateProfile = db.candidateProfiles.find(p => p.userId === user?.id);
-  const expectedPassword = candidateProfile?.passwordHash || demoPasswords[user.id];
+  const expectedPassword = (user as any).passwordHash || candidateProfile?.passwordHash || demoPasswords[user.id];
   if (!password || (expectedPassword && expectedPassword !== password)) {
     return res.status(401).json({ error: 'Invalid mobile number or password.' });
   }
@@ -172,79 +172,32 @@ apiRouter.get('/auth/me', (req: AuthenticatedRequest, res: Response) => {
 });
 
 apiRouter.get('/auth/available-users', (req: Request, res: Response) => {
-  const sampleUsers = [
-    {
-      id: 'usr_admin_01',
-      name: 'Dr. Ramesh Chandra (Director)',
-      email: 'admin@ayudhvikas.org',
-      role: 'admin',
-      mobile: '9849012345',
-      username: 'admin@ayudhvikas.org',
-      password: 'Admin@123',
-      label: 'Managing Director (Final Approver)',
-    },
-    {
-      id: 'usr_hr_01',
-      name: 'Sunita Sharma',
-      email: 'hr@ayudhvikas.org',
-      role: 'hr_admin',
-      mobile: '9849012346',
-      username: 'hr@ayudhvikas.org',
-      password: 'Hr@12345',
-      label: 'HR Recruitment Lead (Level 1 Approver)',
-    },
-    {
-      id: 'usr_ops_01',
-      name: 'Manoj Kumar',
-      email: 'ops@ayudhvikas.org',
-      role: 'ops_admin',
-      mobile: '9849012347',
-      username: 'ops@ayudhvikas.org',
-      password: 'Ops@12345',
-      label: 'Operations Head (Level 2 Approver)',
-    },
-    {
-      id: 'usr_staff_01',
-      name: 'Kavya Rao',
-      email: 'staff@ayudhvikas.org',
-      role: 'staff',
-      mobile: '9849012348',
-      username: 'staff@ayudhvikas.org',
-      password: 'Staff@123',
-      label: 'Staff Portal (AV application review & walk-in registration)',
-    },
-    {
-      id: 'usr_emp_01',
-      name: 'Vikram Singh',
-      email: 'vikram.singh@ayudhvikas.org',
-      role: 'employee',
-      mobile: '9123456789',
-      username: 'vikram.singh@ayudhvikas.org',
-      password: 'Employee@123',
-      label: 'Active Employee (Duty & Attendance)',
-    },
-    {
-      id: 'usr_cand_01',
-      name: 'Rahul Sharma',
-      email: 'rahul.sharma@example.com',
-      role: 'candidate',
-      mobile: '9876543210',
-      username: '9876543210',
-      password: 'Candidate@123',
-      label: 'Registered Candidate (Office Assistant applicant)',
-    },
-    {
-      id: 'usr_cand_02',
-      name: 'Anita Reddy',
-      email: 'anita.reddy@example.com',
-      role: 'candidate',
-      mobile: '9848123456',
-      username: '9848123456',
-      password: 'Candidate@123',
-      label: 'Selected Candidate (In 3-Level Confirmation)',
-    },
-  ];
-  res.json({ users: sampleUsers });
+  const roleLabels: Record<string, string> = {
+    admin: 'Managing Director / Admin',
+    hr_admin: 'HR Admin / Level 1 Approver',
+    ops_admin: 'Operations Admin / Level 2 Approver',
+    staff: 'Staff Portal reviewer',
+    employee: 'Active employee',
+    candidate: 'Registered candidate',
+  };
+  const merged = [...db.users];
+  for (const demoUser of demoLoginUsers) {
+    if (!merged.some(u => u.id === demoUser.id || u.email === demoUser.email)) {
+      merged.push(demoUser);
+    }
+  }
+  res.json({
+    users: merged.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      mobile: u.mobile,
+      username: u.role === 'candidate' ? u.mobile : u.email,
+      password: (u as any).passwordHash || demoPasswords[u.id] || 'Password@123',
+      label: roleLabels[u.role] || 'Portal user',
+    })),
+  });
 });
 
 // ==========================================
@@ -2257,6 +2210,60 @@ apiRouter.get('/employee/appointment-letter', requireEmployee, (req: Authenticat
 
   const letter = db.appointmentLetters.find(l => l.employeeId === employee!.employeeId);
   res.json({ appointmentLetter: letter, employee });
+});
+
+apiRouter.post('/admin/users', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const { name, email, mobile, role, password, department = 'Operations', designation, basicSalary } = req.body;
+  const allowedRoles = ['admin', 'director_admin', 'hr_admin', 'ops_admin', 'staff', 'employee'];
+
+  if (!name || !email || !mobile || !role || !password) {
+    return res.status(400).json({ error: 'Name, email, mobile, role, and password are required.' });
+  }
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ error: 'Candidate accounts cannot be created here. Choose any staff, employee, or admin role.' });
+  }
+  if (db.users.some(u => u.email.toLowerCase() === String(email).toLowerCase() || u.mobile === String(mobile))) {
+    return res.status(409).json({ error: 'A user with this email or mobile already exists.' });
+  }
+
+  const now = new Date().toISOString();
+  const user: User = {
+    id: `usr_${role}_${crypto.randomUUID().slice(0, 8)}`,
+    name,
+    email,
+    mobile,
+    role,
+    passwordHash: password,
+    createdAt: now,
+  };
+  db.users.unshift(user);
+
+  let employee: ManpowerEmployee | undefined;
+  if (role === 'employee') {
+    const serial = String(db.employees.length + 42).padStart(4, '0');
+    employee = {
+      id: `emp_${crypto.randomUUID().slice(0, 8)}`,
+      employeeId: `AV-EMP-2026-${serial}`,
+      userId: user.id,
+      candidateId: '',
+      jobId: '',
+      fullName: name,
+      email,
+      mobile,
+      department,
+      designation: designation || 'Operations Associate',
+      joiningDate: now.slice(0, 10),
+      status: 'ACTIVE',
+      basicSalary: Number(basicSalary) || 18000,
+      idCardIssued: false,
+      appointmentLetterIssued: false,
+      createdAt: now,
+    };
+    db.employees.unshift(employee);
+  }
+
+  db.save();
+  res.status(201).json({ message: `${role.replace('_', ' ')} account created.`, user, employee });
 });
 
 // Admin Employee Directory

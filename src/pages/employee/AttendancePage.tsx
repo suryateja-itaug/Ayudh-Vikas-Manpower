@@ -21,6 +21,7 @@ import {
   getLiveAttendanceTotals,
   getSessionElapsedSeconds,
 } from '../../utils/attendanceTime';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 type DutyAction = 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT';
 type ConfirmableDutyAction = Extract<DutyAction, 'CLOCK_IN' | 'CLOCK_OUT'>;
@@ -62,6 +63,7 @@ export const AttendancePage: React.FC = () => {
   }, [user]);
 
   const liveTotals = getLiveAttendanceTotals(todayAttendance, currentTime);
+  const historyPager = usePaginatedRows(history, 10);
 
   const completedToday = Boolean(
     todayAttendance?.clockInTime &&
@@ -339,7 +341,7 @@ export const AttendancePage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {history.map(item => (
+              {historyPager.paginatedItems.map(item => (
                 <tr key={item.id} className="hover:bg-slate-50/80">
                   <td className="py-3 px-4 font-semibold text-slate-900">{item.date}</td>
                   <td className="py-3 px-4">
@@ -364,6 +366,13 @@ export const AttendancePage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={historyPager.page}
+          totalPages={historyPager.totalPages}
+          totalItems={history.length}
+          pageSize={historyPager.pageSize}
+          onPageChange={historyPager.setPage}
+        />
       </div>
     </div>
   );

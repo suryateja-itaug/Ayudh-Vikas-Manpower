@@ -17,6 +17,7 @@ import { api } from '../../services/api';
 import { CandidateProfile } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { CandidateDossierModal } from './CandidateDossierModal';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const HistoricalSearchPage: React.FC = () => {
   const { user } = useAuth();
@@ -68,6 +69,7 @@ export const HistoricalSearchPage: React.FC = () => {
       });
     }, 50);
   };
+  const candidatesPager = usePaginatedRows(candidates, 10);
 
   return (
     <div className="space-y-8 pb-16">
@@ -218,7 +220,7 @@ export const HistoricalSearchPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                candidates.map(cand => (
+                candidatesPager.paginatedItems.map(cand => (
                   <tr key={cand.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{cand.fullName}</div>
@@ -253,7 +255,7 @@ export const HistoricalSearchPage: React.FC = () => {
                     <td className="py-3.5 px-4">
                       <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        <span>₹10 Paid</span>
+                        <span>Rs.10 Paid</span>
                       </span>
                     </td>
 
@@ -271,6 +273,13 @@ export const HistoricalSearchPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={candidatesPager.page}
+          totalPages={candidatesPager.totalPages}
+          totalItems={candidates.length}
+          pageSize={candidatesPager.pageSize}
+          onPageChange={candidatesPager.setPage}
+        />
       </div>
 
       {selectedCandidateId && (
