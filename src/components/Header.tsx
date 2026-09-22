@@ -66,6 +66,10 @@ export const Header: React.FC = () => {
 
   const isActive = (path: string) => {
     if (path === '/manpower' && location.pathname === '/manpower') return true;
+    if (path === '/manpower/admin' && location.pathname === '/manpower/admin') return true;
+    if (path === '/manpower/employee' && location.pathname === '/manpower/employee') return true;
+    if (path === '/manpower/staff' && location.pathname === '/manpower/staff') return true;
+    if (['/manpower/admin', '/manpower/employee', '/manpower/staff'].includes(path)) return false;
     if (path !== '/manpower' && location.pathname.startsWith(path)) return true;
     return false;
   };
@@ -111,11 +115,14 @@ export const Header: React.FC = () => {
         <>
           <Link to="/manpower/admin" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin', 'bg-teal-600 text-white')}>Dashboard & KPIs</Link>
           <Link to="/manpower/admin/jobs" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/jobs', 'bg-teal-600 text-white')}>Job Management</Link>
+          <Link to="/manpower/admin/users" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/users', 'bg-teal-100 text-teal-900')}>Users & Roles</Link>
+          <Link to="/manpower/admin/pipeline" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/pipeline', 'bg-teal-100 text-teal-900')}>Pipeline</Link>
           <Link to="/manpower/admin/av-applications" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/av-applications', 'bg-teal-100 text-teal-900')}>AV Job Applications</Link>
           <Link to="/manpower/admin/all-applications" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/all-applications', 'bg-teal-100 text-teal-900')}>All Job Applications</Link>
           <Link to="/manpower/admin/search" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/search', 'bg-teal-100 text-teal-900')}>Historical Candidate Search</Link>
           <Link to="/manpower/admin/approvals" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/approvals', 'bg-emerald-600 text-white')}>3-Level Approvals</Link>
           <Link to="/manpower/admin/employees" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/employees', 'bg-teal-100 text-teal-900')}>Employees Directory</Link>
+          <Link to="/manpower/admin/reports" onClick={() => setMobileMenuOpen(false)} className={mobile ? linkClass : navLinkClass('/manpower/admin/reports', 'bg-teal-100 text-teal-900')}>Reports</Link>
         </>
       );
     }

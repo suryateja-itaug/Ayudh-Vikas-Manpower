@@ -4,6 +4,7 @@ import {
   Users,
   Search,
   CheckCircle2,
+  Download,
   Clock,
   ChevronRight,
   Shield,
@@ -13,9 +14,10 @@ import {
   Check,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { ManpowerApplication } from '../../types';
+import { ApplicationStatus, ManpowerApplication } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { CandidateDossierModal } from './CandidateDossierModal';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const AllApplicationsPage: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +27,9 @@ export const AllApplicationsPage: React.FC = () => {
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [bannerMessage, setBannerMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<ApplicationStatus>('UNDER_REVIEW');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const fetchApplications = async () => {
     try {
@@ -33,6 +38,7 @@ export const AllApplicationsPage: React.FC = () => {
         status: statusFilter || undefined,
       });
       setApplications(res.applications);
+      setSelectedIds([]);
     } catch (err: any) {
       console.error('Failed to load corporate applications:', err);
       setBannerMessage({ type: 'error', text: err.message || 'Failed to load applications.' });
@@ -59,6 +65,59 @@ export const AllApplicationsPage: React.FC = () => {
     } finally {
       setUpdatingId(null);
     }
+  };
+  const applicationsPager = usePaginatedRows(applications, 10);
+  const pageIds = applicationsPager.paginatedItems.map(app => app.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const togglePageSelection = () => {
+    setSelectedIds(prev => {
+      if (allPageSelected) return prev.filter(id => !pageIds.includes(id));
+      return Array.from(new Set([...prev, ...pageIds]));
+    });
+  };
+
+  const handleBulkStatus = async () => {
+    if (selectedIds.length === 0) {
+      setBannerMessage({ type: 'error', text: 'Select at least one partner application first.' });
+      return;
+    }
+    try {
+      setBulkBusy(true);
+      const res = await api.bulkUpdateApplicationStatus(selectedIds, bulkStatus, `Bulk partner-job update to ${bulkStatus}`);
+      setBannerMessage({ type: 'success', text: res.message });
+      await fetchApplications();
+    } catch (err: any) {
+      setBannerMessage({ type: 'error', text: err.message || 'Bulk update failed.' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const exportCsv = () => {
+    const rows = applications.map(app => ({
+      candidate: app.candidate?.fullName || '',
+      mobile: app.candidate?.mobile || '',
+      email: app.candidate?.email || '',
+      role: app.job?.title || '',
+      partner: app.job?.companyName || '',
+      qualification: app.candidate?.qualification || '',
+      status: app.applicationStatus,
+      appliedDate: app.appliedDate,
+    }));
+    const headers = Object.keys(rows[0] || { candidate: '', mobile: '', email: '', role: '', partner: '', qualification: '', status: '', appliedDate: '' });
+    const csv = [headers.join(','), ...rows.map(row => headers.map(header => `"${String((row as any)[header] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `all-job-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -124,10 +183,50 @@ export const AllApplicationsPage: React.FC = () => {
 
       {/* Applications Table */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 bg-slate-50/80 text-xs">
+          <div className="font-semibold text-slate-600">
+            {selectedIds.length} selected from {applications.length} partner applications
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={bulkStatus}
+              onChange={e => setBulkStatus(e.target.value as ApplicationStatus)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-700"
+            >
+              <option value="UNDER_REVIEW">Move to Under Review</option>
+              <option value="SHORTLISTED">Shortlist</option>
+              <option value="INTERVIEW">Mark Interview</option>
+              <option value="SELECTED">Select</option>
+              <option value="REJECTED">Reject</option>
+            </select>
+            <button
+              disabled={bulkBusy || selectedIds.length === 0}
+              onClick={handleBulkStatus}
+              className="rounded-xl bg-blue-600 px-3 py-2 font-black text-white disabled:opacity-50"
+            >
+              Apply Bulk Status
+            </button>
+            <button
+              onClick={exportCsv}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 font-black text-slate-700"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-200">
               <tr>
+                <th className="py-3.5 px-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={togglePageSelection}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                  />
+                </th>
                 <th className="py-3.5 px-4">Candidate</th>
                 <th className="py-3.5 px-4">Role & Partner</th>
                 <th className="py-3.5 px-4">Qualification</th>
@@ -139,23 +238,31 @@ export const AllApplicationsPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     Loading corporate job applications...
                   </td>
                 </tr>
               ) : applications.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     No applications found for this filter.
                   </td>
                 </tr>
               ) : (
-                applications.map(app => (
+                applicationsPager.paginatedItems.map(app => (
                   <tr key={app.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(app.id)}
+                        onChange={() => toggleSelection(app.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                      />
+                    </td>
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{app.candidate?.fullName || 'Candidate'}</div>
                       <div className="font-mono text-slate-400 text-[10px]">
-                        {app.candidate?.mobile} • {app.candidate?.email}
+                        {app.candidate?.mobile} - {app.candidate?.email}
                       </div>
                     </td>
 
@@ -235,6 +342,13 @@ export const AllApplicationsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={applicationsPager.page}
+          totalPages={applicationsPager.totalPages}
+          totalItems={applications.length}
+          pageSize={applicationsPager.pageSize}
+          onPageChange={applicationsPager.setPage}
+        />
       </div>
 
       {selectedCandidateId && (

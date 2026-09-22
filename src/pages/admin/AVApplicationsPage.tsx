@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Briefcase, CheckCircle2, Search } from 'lucide-react';
+import { AlertCircle, Briefcase, CheckCircle2, Download, Search } from 'lucide-react';
 import { api } from '../../services/api';
-import { ManpowerApplication } from '../../types';
+import { ApplicationStatus, ManpowerApplication } from '../../types';
 import { CandidateDossierModal } from './CandidateDossierModal';
+import { TablePagination, usePaginatedRows } from '../../components/TablePagination';
 
 export const AVApplicationsPage: React.FC = () => {
   const [applications, setApplications] = useState<ManpowerApplication[]>([]);
@@ -13,6 +14,9 @@ export const AVApplicationsPage: React.FC = () => {
   const [documentFilter, setDocumentFilter] = useState('');
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [bannerMessage, setBannerMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<ApplicationStatus>('UNDER_REVIEW');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const fetchApplications = async () => {
     try {
@@ -21,6 +25,7 @@ export const AVApplicationsPage: React.FC = () => {
         status: statusFilter || undefined,
       });
       setApplications(res.applications);
+      setSelectedIds([]);
     } catch (err: any) {
       setBannerMessage({ type: 'error', text: err.message || 'Failed to load applications.' });
     } finally {
@@ -48,11 +53,69 @@ export const AVApplicationsPage: React.FC = () => {
         candidate?.skills?.join(' '),
       ].filter(Boolean).join(' ').toLowerCase();
 
+      const matchDocument = !documentFilter
+        || (documentFilter === 'COMPLETE' && hasDocument)
+        || (documentFilter === 'MISSING' && !hasDocument)
+        || candidate?.documentVerificationStatus === documentFilter;
+
       return (!search || text.includes(search))
         && (!qualificationFilter || candidate?.qualification === qualificationFilter)
-        && (!documentFilter || (documentFilter === 'COMPLETE' ? hasDocument : !hasDocument));
+        && matchDocument;
     });
   }, [applications, searchTerm, qualificationFilter, documentFilter]);
+  const applicationsPager = usePaginatedRows(filteredApplications, 10);
+  const pageIds = applicationsPager.paginatedItems.map(app => app.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const togglePageSelection = () => {
+    setSelectedIds(prev => {
+      if (allPageSelected) return prev.filter(id => !pageIds.includes(id));
+      return Array.from(new Set([...prev, ...pageIds]));
+    });
+  };
+
+  const handleBulkStatus = async () => {
+    if (selectedIds.length === 0) {
+      setBannerMessage({ type: 'error', text: 'Select at least one AV application first.' });
+      return;
+    }
+    try {
+      setBulkBusy(true);
+      const res = await api.bulkUpdateApplicationStatus(selectedIds, bulkStatus, `Bulk update to ${bulkStatus}`);
+      setBannerMessage({ type: 'success', text: res.message });
+      await fetchApplications();
+    } catch (err: any) {
+      setBannerMessage({ type: 'error', text: err.message || 'Bulk update failed.' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const exportCsv = () => {
+    const rows = filteredApplications.map(app => ({
+      candidate: app.candidate?.fullName || '',
+      mobile: app.candidate?.mobile || '',
+      email: app.candidate?.email || '',
+      qualification: app.candidate?.qualification || '',
+      documentType: app.candidate?.governmentDocumentType || '',
+      documentStatus: app.candidate?.documentVerificationStatus || 'PENDING',
+      hiringStatus: app.applicationStatus,
+      appliedDate: app.appliedDate,
+    }));
+    const headers = Object.keys(rows[0] || { candidate: '', mobile: '', email: '', qualification: '', documentType: '', documentStatus: '', hiringStatus: '', appliedDate: '' });
+    const csv = [headers.join(','), ...rows.map(row => headers.map(header => `"${String((row as any)[header] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `av-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-8 pb-16">
@@ -104,6 +167,10 @@ export const AVApplicationsPage: React.FC = () => {
             <option value="">All Documents</option>
             <option value="COMPLETE">Document Uploaded</option>
             <option value="MISSING">Document Missing</option>
+            <option value="PENDING">Verification Pending</option>
+            <option value="VERIFIED">Verified</option>
+            <option value="NEEDS_CORRECTION">Needs Correction</option>
+            <option value="REJECTED">Doc Rejected</option>
           </select>
         </div>
       </div>
@@ -123,10 +190,50 @@ export const AVApplicationsPage: React.FC = () => {
       )}
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 bg-slate-50/80 text-xs">
+          <div className="font-semibold text-slate-600">
+            {selectedIds.length} selected from {filteredApplications.length} filtered AV applications
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={bulkStatus}
+              onChange={e => setBulkStatus(e.target.value as ApplicationStatus)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-700"
+            >
+              <option value="UNDER_REVIEW">Move to Under Review</option>
+              <option value="SHORTLISTED">Shortlist</option>
+              <option value="INTERVIEW">Mark Interview</option>
+              <option value="SELECTED">Select</option>
+              <option value="REJECTED">Reject</option>
+            </select>
+            <button
+              disabled={bulkBusy || selectedIds.length === 0}
+              onClick={handleBulkStatus}
+              className="rounded-xl bg-emerald-600 px-3 py-2 font-black text-white disabled:opacity-50"
+            >
+              Apply Bulk Status
+            </button>
+            <button
+              onClick={exportCsv}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 font-black text-slate-700"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-200">
               <tr>
+                <th className="py-3.5 px-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={togglePageSelection}
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                  />
+                </th>
                 <th className="py-3.5 px-4">Candidate</th>
                 <th className="py-3.5 px-4">Qualification</th>
                 <th className="py-3.5 px-4">Document</th>
@@ -135,13 +242,22 @@ export const AVApplicationsPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {loading ? (
-                <tr><td colSpan={4} className="py-12 text-center text-slate-400">Loading applications...</td></tr>
+                <tr><td colSpan={5} className="py-12 text-center text-slate-400">Loading applications...</td></tr>
               ) : filteredApplications.length === 0 ? (
-                <tr><td colSpan={4} className="py-12 text-center text-slate-400">No applications matched the filters.</td></tr>
-              ) : filteredApplications.map(app => {
+                <tr><td colSpan={5} className="py-12 text-center text-slate-400">No applications matched the filters.</td></tr>
+              ) : applicationsPager.paginatedItems.map(app => {
                 const hasDocument = Boolean(app.candidate?.governmentDocumentType && app.candidate?.governmentDocumentNumber && app.candidate?.governmentDocumentUrl);
+                const docStatus = app.candidate?.documentVerificationStatus || 'PENDING';
                 return (
                   <tr key={app.id} onClick={() => setSelectedCandidateId(app.candidateId)} className="hover:bg-emerald-50/70 transition-colors cursor-pointer">
+                    <td className="py-3.5 px-4" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(app.id)}
+                        onChange={() => toggleSelection(app.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                      />
+                    </td>
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900 text-sm">{app.candidate?.fullName || 'Candidate'}</div>
                       <div className="text-[11px] text-slate-400">{app.candidate?.mobile} - {app.candidate?.email}</div>
@@ -154,6 +270,7 @@ export const AVApplicationsPage: React.FC = () => {
                       <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${hasDocument ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
                         {hasDocument ? app.candidate?.governmentDocumentType : 'Missing'}
                       </span>
+                      <span className="block mt-1 text-[10px] font-bold text-slate-500">{docStatus.replace('_', ' ')}</span>
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`inline-flex px-2 py-1 rounded-lg font-bold text-[10px] uppercase border ${
@@ -174,10 +291,23 @@ export const AVApplicationsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={applicationsPager.page}
+          totalPages={applicationsPager.totalPages}
+          totalItems={filteredApplications.length}
+          pageSize={applicationsPager.pageSize}
+          onPageChange={applicationsPager.setPage}
+        />
       </div>
 
       {selectedCandidateId && (
-        <CandidateDossierModal candidateId={selectedCandidateId} onClose={() => setSelectedCandidateId(null)} />
+        <CandidateDossierModal
+          candidateId={selectedCandidateId}
+          onClose={() => {
+            setSelectedCandidateId(null);
+            fetchApplications();
+          }}
+        />
       )}
     </div>
   );

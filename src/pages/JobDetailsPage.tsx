@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   Briefcase,
   Building2,
@@ -22,6 +23,15 @@ import { ManpowerJob } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { getSampleJobById } from '../data/sampleJobs';
 
+const detailImages = [
+  'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1800&q=82',
+  'https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=1800&q=82',
+  'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1800&q=82',
+  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1800&q=82',
+];
+
+const getDetailImage = (jobId: string) => detailImages[Math.abs(jobId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % detailImages.length];
+
 export const JobDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -31,9 +41,6 @@ export const JobDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Apply Modal state
-  const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
-  const [notes, setNotes] = useState<string>('');
   const [applying, setApplying] = useState<boolean>(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState<string | null>(null);
@@ -65,10 +72,9 @@ export const JobDetailsPage: React.FC = () => {
     try {
       setApplying(true);
       setApplyError(null);
-      const res = await api.applyForJob(job.id, notes);
+      const res = await api.applyForJob(job.id);
       setApplySuccess(`Application submitted! Ref ID: ${res.application.id}`);
       setTimeout(() => {
-        setShowApplyModal(false);
         navigate('/manpower/applications');
       }, 1800);
     } catch (err: any) {
@@ -117,7 +123,7 @@ export const JobDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+    <div className="max-w-6xl mx-auto space-y-8 pb-16">
       {/* Back button */}
       <Link
         to={job.jobCategory === 'AV_JOB' ? '/manpower/jobs/av' : '/manpower/jobs/all'}
@@ -127,18 +133,20 @@ export const JobDetailsPage: React.FC = () => {
         <span>Back to {job.jobCategory === 'AV_JOB' ? 'AV Jobs' : 'All Jobs'}</span>
       </Link>
 
-      {/* Main Job Banner Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-100 pb-6">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+      <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 text-white min-h-[360px] flex items-end">
+        <img src={getDetailImage(job.id)} alt={job.title} className="absolute inset-0 h-full w-full object-cover opacity-48" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-emerald-950/82 to-slate-950/25" />
+        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="relative w-full p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+            <div className="max-w-3xl space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-lime-300 text-emerald-950">
                 {job.department}
               </span>
               <span
-                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full ${
                   job.status === 'OPEN'
-                    ? 'bg-emerald-100 text-emerald-800'
+                    ? 'bg-white text-emerald-800'
                     : 'bg-rose-100 text-rose-800'
                 }`}
               >
@@ -146,41 +154,58 @@ export const JobDetailsPage: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight">
               {job.title}
             </h1>
 
-            <p className="text-xs sm:text-sm text-slate-600 font-medium flex items-center">
-              <Building2 className="w-4 h-4 mr-1.5 text-amber-500" />
+              <p className="text-sm sm:text-base text-emerald-50/88 font-medium flex items-center">
+                <Building2 className="w-4 h-4 mr-1.5 text-lime-200" />
               <span>{job.companyName}</span>
             </p>
+              <p className="text-sm leading-7 text-slate-100/88 max-w-2xl">
+                {job.description}
+              </p>
           </div>
 
-          {/* Action button */}
-          <div className="shrink-0 self-start sm:self-center">
+            <div className="shrink-0">
             {job.status === 'OPEN' ? (
               <button
                 onClick={startPaidApplication}
-                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-500/20 flex items-center space-x-2 transition-all hover:scale-[1.02]"
+                disabled={applying}
+                className="px-6 py-3 bg-lime-300 hover:bg-lime-200 text-emerald-950 font-black text-sm rounded-xl shadow-md shadow-lime-300/20 flex items-center space-x-2 transition-all hover:scale-[1.02] disabled:opacity-60 disabled:hover:scale-100"
               >
-                <span>Apply / Register</span>
+                <span>{applying ? 'Applying...' : isRegisteredCandidate ? 'Apply now' : 'Register and apply'}</span>
                 <Send className="w-3.5 h-3.5" />
               </button>
             ) : (
-              <div className="px-4 py-2 bg-slate-100 text-slate-500 rounded-xl text-xs font-semibold">
+                <div className="px-4 py-2 bg-white/12 border border-white/20 text-white rounded-xl text-xs font-semibold">
                 Application Closed
               </div>
             )}
           </div>
         </div>
+        </motion.div>
+      </section>
 
+      {(applyError || applySuccess) && (
+        <div className={`rounded-2xl border p-4 text-xs font-semibold flex items-start gap-2 ${
+          applySuccess
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-rose-50 border-rose-200 text-rose-800'
+        }`}>
+          {applySuccess ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+          <span>{applySuccess || applyError}</span>
+        </div>
+      )}
+
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
         {/* Highlight Stats Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
           <div>
             <span className="text-[11px] text-slate-400 font-medium">Monthly Salary</span>
             <div className="text-slate-900 font-bold text-sm mt-0.5 flex items-center">
               <IndianRupee className="w-3.5 h-3.5 mr-0.5 text-amber-500" />
-              <span>₹{job.salaryMin.toLocaleString()} - ₹{job.salaryMax.toLocaleString()}</span>
+              <span>Rs.{job.salaryMin.toLocaleString()} - Rs.{job.salaryMax.toLocaleString()}</span>
             </div>
           </div>
 

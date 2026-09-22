@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  AlertCircle,
   Briefcase,
   Building2,
   Users,
@@ -13,6 +14,9 @@ import {
   CheckCircle2,
   BellRing,
   Award,
+  UserPlus,
+  FileCheck2,
+  ClipboardList,
 } from 'lucide-react';
 import {
   BarChart,
@@ -27,11 +31,24 @@ import {
 } from 'recharts';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { UserRole } from '../../types';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountMessage, setAccountMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [accountForm, setAccountForm] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    role: 'staff' as Exclude<UserRole, 'candidate'>,
+    password: 'Password@123',
+    department: 'Operations',
+    designation: 'Operations Associate',
+    basicSalary: 18000,
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -56,6 +73,31 @@ export const AdminDashboardPage: React.FC = () => {
     { name: 'Graduates', value: 65, color: '#10b981' },
     { name: 'B.Tech / MCA', value: 25, color: '#047857' },
   ];
+
+  const handleAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountMessage(null);
+    if (accountForm.password.length < 8 || !/[A-Z]/.test(accountForm.password) || !/[0-9]/.test(accountForm.password)) {
+      setAccountMessage({ type: 'error', text: 'Password must be at least 8 characters with one uppercase letter and one number.' });
+      return;
+    }
+    try {
+      setAccountSaving(true);
+      const res = await api.createPortalAccount(accountForm);
+      setAccountMessage({ type: 'success', text: `${res.user.name} created as ${res.user.role.replace('_', ' ')}. They can log in with ${res.user.email}.` });
+      setAccountForm(prev => ({
+        ...prev,
+        name: '',
+        email: '',
+        mobile: '',
+        password: 'Password@123',
+      }));
+    } catch (err: any) {
+      setAccountMessage({ type: 'error', text: err.message || 'Failed to create account.' });
+    } finally {
+      setAccountSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-8 pb-16">
@@ -138,12 +180,12 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-400 font-medium">Candidates (₹10)</span>
+          <span className="text-[11px] text-slate-400 font-medium">Candidates (Rs.10)</span>
           <div className="text-2xl font-extrabold text-slate-900">
             {stats?.kpis?.totalCandidates ?? 129}
           </div>
           <span className="text-[10px] text-emerald-600 font-semibold">
-            ₹{(stats?.kpis?.totalCandidateFeesCollected ?? 1290).toLocaleString()} Verified
+            Rs.{(stats?.kpis?.registrationRevenue ?? 1290).toLocaleString()} Verified
           </span>
         </div>
 
@@ -246,6 +288,103 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <ActionWidget
+          to="/manpower/admin/av-applications"
+          icon={<ClipboardList className="w-5 h-5" />}
+          label="Staff Reviews"
+          value={stats?.kpis?.pendingStaffReviews ?? 0}
+          tone="emerald"
+          text="AV profiles pending first review"
+        />
+        <ActionWidget
+          to="/manpower/admin/av-applications"
+          icon={<FileCheck2 className="w-5 h-5" />}
+          label="Document Issues"
+          value={stats?.kpis?.documentMissingCount ?? 0}
+          tone="amber"
+          text="Missing or correction-needed IDs"
+        />
+        <ActionWidget
+          to="/manpower/admin/pipeline"
+          icon={<Briefcase className="w-5 h-5" />}
+          label="Interviews"
+          value={stats?.kpis?.pendingInterviews ?? 0}
+          tone="blue"
+          text="Candidates in interview stage"
+        />
+        <ActionWidget
+          to="/manpower/admin/attendance"
+          icon={<Clock className="w-5 h-5" />}
+          label="On Duty"
+          value={stats?.kpis?.currentlyOnDuty ?? 0}
+          tone="slate"
+          text="Employees currently working"
+        />
+        <ActionWidget
+          to="/manpower/staff/walk-in"
+          icon={<UserPlus className="w-5 h-5" />}
+          label="Walk-ins Today"
+          value={stats?.kpis?.todayWalkIns ?? 0}
+          tone="lime"
+          text="Cash-paid walk-in registrations"
+        />
+      </div>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">
+              <UserPlus className="w-4 h-4" />
+              Portal account creation
+            </div>
+            <h2 className="mt-2 text-xl font-black text-slate-950">Create Any Non-Candidate Portal Account</h2>
+            <p className="mt-1 text-xs text-slate-500">Created users can sign in from the common login screen with the email and password set here.</p>
+          </div>
+          {accountMessage && (
+            <div className={`rounded-2xl border px-4 py-3 text-xs font-semibold flex items-start gap-2 max-w-xl ${
+              accountMessage.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}>
+              {accountMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+              <span>{accountMessage.text}</span>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleAccountSubmit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-xs">
+          <AdminField label="Full Name" value={accountForm.name} onChange={value => setAccountForm(prev => ({ ...prev, name: value }))} required />
+          <AdminField label="Email / Username" type="email" value={accountForm.email} onChange={value => setAccountForm(prev => ({ ...prev, email: value }))} required />
+          <AdminField label="Mobile" value={accountForm.mobile} onChange={value => setAccountForm(prev => ({ ...prev, mobile: value }))} required />
+          <label className="block space-y-1.5 font-semibold text-slate-700">
+            <span>Role</span>
+            <select
+              value={accountForm.role}
+              onChange={e => setAccountForm(prev => ({ ...prev, role: e.target.value as any }))}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900"
+            >
+              <option value="admin">Admin</option>
+              <option value="director_admin">Director Admin</option>
+              <option value="hr_admin">HR Admin</option>
+              <option value="ops_admin">Ops Admin</option>
+              <option value="staff">Staff</option>
+              <option value="employee">Employee</option>
+            </select>
+          </label>
+          <AdminField label="Password" type="password" value={accountForm.password} onChange={value => setAccountForm(prev => ({ ...prev, password: value }))} required />
+          <AdminField label="Department" value={accountForm.department} onChange={value => setAccountForm(prev => ({ ...prev, department: value }))} />
+          <AdminField label="Designation" value={accountForm.designation} onChange={value => setAccountForm(prev => ({ ...prev, designation: value }))} />
+          <AdminField label="Basic Salary" type="number" value={String(accountForm.basicSalary)} onChange={value => setAccountForm(prev => ({ ...prev, basicSalary: Number(value) }))} />
+          <div className="md:col-span-2 xl:col-span-4 flex justify-end">
+            <button disabled={accountSaving} className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black inline-flex items-center gap-2 disabled:opacity-60">
+              <UserPlus className="w-4 h-4" />
+              {accountSaving ? 'Creating...' : 'Create Portal Account'}
+            </button>
+          </div>
+        </form>
+      </section>
+
       {/* Operational Quick Nav Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* AV Applications */}
@@ -303,5 +442,53 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const AdminField = ({ label, value, onChange, type = 'text', required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) => (
+  <label className="block space-y-1.5 font-semibold text-slate-700">
+    <span>{label}</span>
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      required={required}
+      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+    />
+  </label>
+);
+
+const ActionWidget = ({
+  to,
+  icon,
+  label,
+  value,
+  text,
+  tone,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  text: string;
+  tone: 'emerald' | 'amber' | 'blue' | 'slate' | 'lime';
+}) => {
+  const tones = {
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    amber: 'bg-amber-50 text-amber-700 border-amber-100',
+    blue: 'bg-blue-50 text-blue-700 border-blue-100',
+    slate: 'bg-slate-50 text-slate-700 border-slate-200',
+    lime: 'bg-lime-50 text-lime-700 border-lime-100',
+  };
+
+  return (
+    <Link to={to} className={`rounded-3xl border bg-white p-4 shadow-sm shadow-slate-900/5 transition-transform hover:-translate-y-0.5 ${tones[tone]}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className={`rounded-2xl border p-3 ${tones[tone]}`}>{icon}</div>
+        <div className="text-3xl font-black text-slate-950">{value}</div>
+      </div>
+      <div className="mt-3 text-sm font-black text-slate-950">{label}</div>
+      <div className="mt-1 text-[11px] font-semibold text-slate-500">{text}</div>
+    </Link>
   );
 };

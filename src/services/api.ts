@@ -279,6 +279,20 @@ class ApiService {
     });
   }
 
+  public async bulkUpdateApplicationStatus(ids: string[], status: string, remarks?: string) {
+    return this.request<{ message: string; applications: ManpowerApplication[] }>('/admin/applications/bulk-status', {
+      method: 'POST',
+      body: JSON.stringify({ ids, status, remarks }),
+    });
+  }
+
+  public async updateDocumentVerification(candidateId: string, status: CandidateProfile['documentVerificationStatus'], remarks?: string) {
+    return this.request<{ message: string; profile: CandidateProfile }>(`/admin/candidate/${candidateId}/document-verification`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, remarks }),
+    });
+  }
+
   public async getCandidateHistory(candidateId: string) {
     return this.request<{
       profile: CandidateProfile;
@@ -572,6 +586,40 @@ class ApiService {
   // Admin Employees Directory
   public async getAdminEmployees() {
     return this.request<{ employees: ManpowerEmployee[] }>('/admin/employees');
+  }
+
+  public async createPortalAccount(data: {
+    name: string;
+    email: string;
+    mobile: string;
+    role: Exclude<User['role'], 'candidate'>;
+    password: string;
+    department?: string;
+    designation?: string;
+    basicSalary?: number;
+  }) {
+    return this.request<{ message: string; user: User; employee?: ManpowerEmployee }>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public async getPortalUsers() {
+    return this.request<{ users: Array<User & { employeeRecord?: ManpowerEmployee }> }>('/admin/users');
+  }
+
+  public async updatePortalUser(id: string, data: Partial<{
+    name: string;
+    email: string;
+    mobile: string;
+    role: Exclude<User['role'], 'candidate'>;
+    password: string;
+    isActive: boolean;
+  }>) {
+    return this.request<{ message: string; user: User; employee?: ManpowerEmployee }>(`/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   // Stats

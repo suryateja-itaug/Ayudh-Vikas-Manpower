@@ -1,9 +1,35 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { AlertCircle, ArrowRight, CheckCircle2, CreditCard, FileText, Lock, Mail, Phone, ShieldCheck, User } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ManpowerJob } from '../types';
+
+const applicationImage = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1800&q=82';
+
+const emptyCandidateForm = {
+  fullName: '',
+  mobile: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  dob: '',
+  qualification: '',
+  graduation: '',
+  skills: '',
+  experienceYears: 0,
+  preferredJob: '',
+  preferredLocation: '',
+  address: '',
+  resumeUrl: '',
+  detailedExperience: '',
+  esicNumber: '',
+  pfAccountNumber: '',
+  governmentDocumentType: 'AADHAAR',
+  governmentDocumentNumber: '',
+  governmentDocumentUrl: '',
+};
 
 interface CandidateRegisterPageProps {
   registrationScopeOverride?: 'ALL_JOBS' | 'AV_JOBS';
@@ -30,33 +56,34 @@ export const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ re
   }, [registrationScopeOverride, targetJob]);
 
   const isAvScope = registrationScope === 'AV_JOBS';
-  const isAvUpgrade = isAvScope && candidateProfile?.registrationScope === 'ALL_JOBS';
-  const isAvComplete = isAvScope && candidateProfile?.registrationScope === 'AV_JOBS';
+  const isAvUpgrade = !staffCashMode && isAvScope && candidateProfile?.registrationScope === 'ALL_JOBS';
+  const isAvComplete = !staffCashMode && isAvScope && candidateProfile?.registrationScope === 'AV_JOBS';
   const showOnlyAvFields = Boolean(isAvUpgrade);
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    fullName: candidateProfile?.fullName || user?.name || '',
-    mobile: candidateProfile?.mobile || user?.mobile || '',
-    email: candidateProfile?.email || user?.email || '',
-    password: '',
-    confirmPassword: '',
-    dob: candidateProfile?.dob || '1998-05-14',
-    qualification: candidateProfile?.qualification || 'Graduate',
-    graduation: candidateProfile?.graduation || '',
-    skills: candidateProfile?.skills?.join(', ') || '',
-    experienceYears: candidateProfile?.experienceYears || 0,
-    preferredJob: candidateProfile?.preferredJob || '',
-    preferredLocation: candidateProfile?.preferredLocation || 'Hyderabad',
-    address: candidateProfile?.address || '',
-    resumeUrl: candidateProfile?.resumeUrl || '',
-    detailedExperience: candidateProfile?.detailedExperience || '',
-    esicNumber: candidateProfile?.esicNumber || '',
-    pfAccountNumber: candidateProfile?.pfAccountNumber || '',
-    governmentDocumentType: candidateProfile?.governmentDocumentType || 'AADHAAR',
-    governmentDocumentNumber: candidateProfile?.governmentDocumentNumber || '',
-    governmentDocumentUrl: candidateProfile?.governmentDocumentUrl || '',
-  });
+  const [formData, setFormData] = useState(() => ({
+    ...emptyCandidateForm,
+    ...(staffCashMode ? {} : {
+      fullName: candidateProfile?.fullName || user?.name || '',
+      mobile: candidateProfile?.mobile || user?.mobile || '',
+      email: candidateProfile?.email || user?.email || '',
+      dob: candidateProfile?.dob || '1998-05-14',
+      qualification: candidateProfile?.qualification || 'Graduate',
+      skills: candidateProfile?.skills?.join(', ') || '',
+      experienceYears: candidateProfile?.experienceYears || 0,
+      preferredLocation: candidateProfile?.preferredLocation || 'Hyderabad',
+      graduation: candidateProfile?.graduation || '',
+      preferredJob: candidateProfile?.preferredJob || '',
+      address: candidateProfile?.address || '',
+      resumeUrl: candidateProfile?.resumeUrl || '',
+      detailedExperience: candidateProfile?.detailedExperience || '',
+      esicNumber: candidateProfile?.esicNumber || '',
+      pfAccountNumber: candidateProfile?.pfAccountNumber || '',
+      governmentDocumentType: candidateProfile?.governmentDocumentType || 'AADHAAR',
+      governmentDocumentNumber: candidateProfile?.governmentDocumentNumber || '',
+      governmentDocumentUrl: candidateProfile?.governmentDocumentUrl || '',
+    }),
+  }));
 
   useEffect(() => {
     if (!jobId) return;
@@ -73,14 +100,14 @@ export const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ re
   }, [jobId]);
 
   const passwordError = useMemo(() => {
-    if (candidateProfile) return '';
+    if (candidateProfile && !staffCashMode) return '';
     if (!formData.password) return 'Password is required.';
     if (formData.password.length < 8) return 'Password must be at least 8 characters.';
     if (!/[A-Z]/.test(formData.password)) return 'Password must include one uppercase letter.';
     if (!/[0-9]/.test(formData.password)) return 'Password must include one number.';
     if (formData.password !== formData.confirmPassword) return 'Passwords must match.';
     return '';
-  }, [formData.password, formData.confirmPassword]);
+  }, [candidateProfile, staffCashMode, formData.password, formData.confirmPassword]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -149,7 +176,7 @@ export const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ re
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-16">
+    <div className="max-w-5xl mx-auto space-y-6 pb-16">
       {(completionMessage || (isAvComplete && isRegisteredCandidate)) && !staffCashMode && (
         <div className="bg-white border border-emerald-200 rounded-2xl p-6 text-center space-y-3">
           <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
@@ -162,39 +189,58 @@ export const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ re
       )}
       {!(((isAvComplete && isRegisteredCandidate) || completionMessage) && !staffCashMode) && (
       <>
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-              <ShieldCheck className="w-4 h-4" />
-              {staffCashMode ? 'Staff Walk-in Registration' : isAvScope ? 'AV Jobs Candidate Registration' : 'All Jobs Candidate Registration'}
+      <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 text-white min-h-[300px]">
+        <img src={applicationImage} alt="Candidates preparing job applications" className="absolute inset-0 h-full w-full object-cover opacity-45" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-emerald-950/85 to-slate-950/20" />
+        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="relative p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-lime-200">
+                <ShieldCheck className="w-4 h-4" />
+                {staffCashMode ? 'Walk-in support desk' : isAvScope ? 'Foundation profile' : 'Partner job profile'}
+              </div>
+              <h1 className="mt-3 text-3xl sm:text-5xl font-black tracking-tight">
+                {staffCashMode ? 'Register a walk-in candidate with confidence.' : isAvUpgrade ? 'Complete your Foundation-ready profile.' : isAvScope ? 'Start your AV Jobs profile.' : 'Create your job-ready profile.'}
+              </h1>
+              <p className="mt-4 text-sm sm:text-base leading-7 text-emerald-50/88">
+                {staffCashMode
+                  ? 'Capture the candidate details, collect Rs.10 in cash, and move the profile into staff review.'
+                  : isAvScope
+                  ? isAvUpgrade
+                    ? 'Add the remaining details once so the team can consider you for Foundation opportunities.'
+                    : 'Share your identity, experience, and statutory details once so staff can review and contact you when a suitable role opens.'
+                  : 'Register once, apply to external jobs, and keep your applications visible without paying for every role.'}
+              </p>
             </div>
-            <h1 className="mt-2 text-2xl font-extrabold text-slate-900">
-              {staffCashMode ? 'Register Walk-in Candidate' : isAvUpgrade ? 'Complete AV Jobs Profile' : isAvScope ? 'Register for AV Jobs Notifications' : 'Register for Partner Job Applications'}
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {staffCashMode
-                ? 'Capture the candidate details, collect Rs.10 in cash, and submit with cash-paid marking.'
-                : isAvScope
-                ? isAvUpgrade
-                  ? 'Fill the remaining profile details to receive AV job updates.'
-                  : 'AV registration includes statutory and identity details required for Ayudh Vikas vacancies.'
-                : 'All Jobs registration creates your basic profile and alerts you for external partner jobs.'}
-            </p>
-          </div>
           {!user && (
-            <Link to="/manpower/login" className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold text-center">
+            <Link to="/manpower/login" className="px-4 py-2 rounded-xl bg-white text-slate-950 text-xs font-black text-center shadow-sm">
               Login
             </Link>
           )}
-        </div>
-
-        {targetJob && (
-          <div className="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900">
-            Applying for <strong>{targetJob.title}</strong> at {targetJob.companyName}
           </div>
-        )}
-      </div>
+
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+              <strong className="block text-white">One profile</strong>
+              <span className="text-emerald-50/75">Your details stay ready for review.</span>
+            </div>
+            <div className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+              <strong className="block text-white">Clear updates</strong>
+              <span className="text-emerald-50/75">Submitted jobs remain trackable.</span>
+            </div>
+            <div className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+              <strong className="block text-white">Rs.10 once</strong>
+              <span className="text-emerald-50/75">No repeated fee per application.</span>
+            </div>
+          </div>
+
+          {targetJob && (
+            <div className="mt-5 rounded-xl bg-lime-300/95 border border-lime-100 p-3 text-xs text-emerald-950">
+              Applying for <strong>{targetJob.title}</strong> at {targetJob.companyName}
+            </div>
+          )}
+        </motion.div>
+      </section>
 
       <form
         onSubmit={e => {
@@ -226,7 +272,7 @@ export const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ re
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-5">
-              <Select label="Qualification" name="qualification" value={formData.qualification} onChange={handleInputChange} options={['10th', '12th', 'Diploma', 'Graduate', 'Post-Graduate']} />
+              <Select label="Qualification" name="qualification" value={formData.qualification} onChange={handleInputChange} options={['10th', '12th', 'Diploma', 'Graduate', 'Post-Graduate']} placeholder="Select qualification" />
               <Field label="Graduation / Course" name="graduation" value={formData.graduation} onChange={handleInputChange} />
               <Field label="Skills" name="skills" value={formData.skills} onChange={handleInputChange} placeholder="MS Office, Driving, Security" />
               <Select label="Experience" name="experienceYears" value={String(formData.experienceYears)} onChange={handleInputChange} options={['0', '1', '2', '3', '5']} />
@@ -339,10 +385,11 @@ const FileField = ({ label, value, ...props }: any) => (
   </label>
 );
 
-const Select = ({ label, options, ...props }: any) => (
+const Select = ({ label, options, placeholder, ...props }: any) => (
   <label className="block space-y-1.5 text-xs font-semibold text-slate-700">
     <span>{label}</span>
     <select {...props} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900">
+      {placeholder && <option value="">{placeholder}</option>}
       {options.map((option: string) => <option key={option} value={option}>{option}</option>)}
     </select>
   </label>

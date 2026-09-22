@@ -26,6 +26,7 @@ import {
   formatDurationSeconds,
   getLiveAttendanceTotals,
 } from '../../utils/attendanceTime';
+import { AttendanceCalendar } from '../../components/AttendanceCalendar';
 
 type DutyAction = 'CLOCK_IN' | 'BREAK' | 'LUNCH' | 'RESUME' | 'CLOCK_OUT';
 type ConfirmableDutyAction = Extract<DutyAction, 'CLOCK_IN' | 'CLOCK_OUT'>;
@@ -34,6 +35,7 @@ export const EmployeeDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [employee, setEmployee] = useState<ManpowerEmployee | null>(null);
   const [attendance, setAttendance] = useState<EmployeeAttendance | null>(null);
+  const [attendanceHistory, setAttendanceHistory] = useState<EmployeeAttendance[]>([]);
   const [leaveBalance, setLeaveBalance] = useState<{ casual: number; sick: number; earned: number }>({
     casual: 8,
     sick: 6,
@@ -47,10 +49,14 @@ export const EmployeeDashboardPage: React.FC = () => {
   const fetchEmployeeData = async () => {
     try {
       setLoading(true);
-      const res = await api.getEmployeeMe();
+      const [res, historyRes] = await Promise.all([
+        api.getEmployeeMe(),
+        api.getAttendanceHistory(),
+      ]);
       setEmployee(res.employee);
       setAttendance(res.todayAttendance);
       setLeaveBalance(res.leaveBalance);
+      setAttendanceHistory(historyRes.history || []);
     } catch (err) {
       console.error('Failed to load employee dashboard info:', err);
     } finally {
@@ -72,6 +78,8 @@ export const EmployeeDashboardPage: React.FC = () => {
       setActionLoading(true);
       const res = await api.recordAttendanceAction(action);
       setAttendance(res.attendance);
+      const historyRes = await api.getAttendanceHistory();
+      setAttendanceHistory(historyRes.history || []);
     } catch (err: any) {
       alert(err.message || 'Action failed.');
     } finally {
@@ -207,9 +215,10 @@ export const EmployeeDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Duty & Attendance State Machine Widget */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+        {/* Duty & Attendance State Machine Widget */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <div className="flex items-center space-x-2">
               <Clock className="w-5 h-5 text-emerald-600" />
@@ -336,6 +345,14 @@ export const EmployeeDashboardPage: React.FC = () => {
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
+        </div>
+
+        <AttendanceCalendar
+          records={attendanceHistory}
+          todayAttendance={attendance}
+          now={currentTime}
+          compact
+        />
       </div>
 
       <DutyActionConfirmModal

@@ -32,14 +32,37 @@ export const CandidateDossierModal: React.FC<CandidateDossierModalProps> = ({ ca
     approvals: any[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [documentStatus, setDocumentStatus] = useState<CandidateProfile['documentVerificationStatus']>('PENDING');
+  const [documentRemarks, setDocumentRemarks] = useState('');
+  const [documentSaving, setDocumentSaving] = useState(false);
+  const [documentMessage, setDocumentMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     api.getCandidateHistory(candidateId)
-      .then(res => setData(res))
+      .then(res => {
+        setData(res);
+        setDocumentStatus(res.profile.documentVerificationStatus || 'PENDING');
+        setDocumentRemarks(res.profile.documentVerificationRemarks || '');
+      })
       .catch(err => console.error('Failed to load candidate dossier:', err))
       .finally(() => setLoading(false));
   }, [candidateId]);
+
+  const handleDocumentVerification = async () => {
+    if (!data?.profile || !documentStatus) return;
+    try {
+      setDocumentSaving(true);
+      setDocumentMessage(null);
+      const res = await api.updateDocumentVerification(data.profile.id, documentStatus, documentRemarks);
+      setData(prev => prev ? { ...prev, profile: res.profile } : prev);
+      setDocumentMessage(res.message);
+    } catch (err: any) {
+      setDocumentMessage(err.message || 'Failed to update document status.');
+    } finally {
+      setDocumentSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
@@ -191,6 +214,43 @@ export const CandidateDossierModal: React.FC<CandidateDossierModalProps> = ({ ca
                 ) : (
                   <p className="text-rose-600 font-semibold">No uploaded document found.</p>
                 )}
+                <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="space-y-1">
+                      <span className="text-[11px] font-bold text-slate-500">Verification Status</span>
+                      <select
+                        value={documentStatus || 'PENDING'}
+                        onChange={e => setDocumentStatus(e.target.value as CandidateProfile['documentVerificationStatus'])}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
+                      >
+                        <option value="PENDING">Pending</option>
+                        <option value="VERIFIED">Verified</option>
+                        <option value="NEEDS_CORRECTION">Needs Correction</option>
+                        <option value="REJECTED">Rejected</option>
+                      </select>
+                    </label>
+                    <div className="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500">
+                      <span className="block font-bold text-slate-700">Last Review</span>
+                      {data.profile.documentVerifiedAt
+                        ? `${data.profile.documentVerifiedBy || 'Admin'} - ${new Date(data.profile.documentVerifiedAt).toLocaleString()}`
+                        : 'Not reviewed yet'}
+                    </div>
+                  </div>
+                  <textarea
+                    value={documentRemarks}
+                    onChange={e => setDocumentRemarks(e.target.value)}
+                    placeholder="Verification remarks for candidate notification..."
+                    className="w-full min-h-[72px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800"
+                  />
+                  <button
+                    onClick={handleDocumentVerification}
+                    disabled={documentSaving}
+                    className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-60"
+                  >
+                    {documentSaving ? 'Saving...' : 'Save Document Verification'}
+                  </button>
+                  {documentMessage && <p className="text-[11px] font-semibold text-emerald-700">{documentMessage}</p>}
+                </div>
               </div>
             </div>
             {/* Past Applications Timeline */}
